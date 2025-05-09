@@ -46,7 +46,7 @@ function App() {
 
     socket.on('message', (message) => {
       console.log('SOCKET MESSAGE:', message);
-      setMessages((prevMessages) => [...prevMessages, message]);
+      setMessages((prevMessages) => [...prevMessages, { ...message, timestamp: new Date() }]);
     });
 
     socket.on('join', (sessionId) => {
@@ -67,10 +67,11 @@ function App() {
     if (inputMessage.trim()) {
       const message = {
         text: inputMessage,
-        sessionId: sessionId
+        sessionId: sessionId,
+        sender: 'user'
       };
       socket.emit('sendMessage', message);
-      setMessages((prevMessages) => [...prevMessages, message]);
+      setMessages((prevMessages) => [...prevMessages, { ...message, timestamp: new Date() }]);
       setInputMessage('');
     }
   };
@@ -96,7 +97,8 @@ function App() {
         }
 
         const data = await response.json();
-        setMessages((prevMessages) => [...prevMessages, data.message]);
+        data.sender = 'bot';
+        setMessages((prevMessages) => [...prevMessages, { ...data.message, timestamp: new Date() }]);
       } catch (error) {
         console.error('Error uploading file:', error);
         // Show error message to user
@@ -106,7 +108,8 @@ function App() {
           timestamp: new Date().toISOString(),
           sessionId: sessionId
         };
-        setMessages((prevMessages) => [...prevMessages, errorMessage]);
+        errorMessage.sender = 'bot';
+        setMessages((prevMessages) => [...prevMessages, { ...errorMessage, timestamp: new Date() }]);
       }
     }
   };
