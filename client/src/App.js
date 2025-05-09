@@ -23,7 +23,7 @@ const socket = io('http://localhost:5002');
 function App() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [sessionId] = useState(() => {
@@ -49,47 +49,8 @@ function App() {
       setMessages((prevMessages) => [...prevMessages, message]);
     });
 
-    socket.on('sendMessage', async (message) => {
-      try {
-        console.log('Received message:', message);
-
-        // Save the user message
-        const newMessage = new Message({
-          userId: message.userId,
-          content: message.content || message.text, // support both 'content' and 'text'
-          attachments: message.attachments || [],
-          timestamp: new Date(),
-          isAdmin: false
-        });
-        await newMessage.save();
-        console.log('Saved message:', newMessage);
-
-        // Emit the user message back (optional, for chat history)
-        io.to(message.userId).emit('message', {
-          text: newMessage.content,
-          sender: 'user',
-          timestamp: newMessage.timestamp,
-          sessionId: message.sessionId
-        });
-
-        // --- BOT LOGIC: Call your bot controller here ---
-        const processMessage = require('./src/controllers/chatController').processMessage;
-        const botResponse = await processMessage({
-          text: message.content || message.text,
-          sessionId: message.sessionId,
-          userId: message.userId
-        });
-
-        // Add sender: 'bot' for the client UI
-        botResponse.sender = 'bot';
-
-        // Emit the bot's response
-        io.to(message.userId).emit('message', botResponse);
-
-        console.log('Sent bot response:', botResponse);
-      } catch (error) {
-        console.error('Error saving or responding to message:', error);
-      }
+    socket.on('join', (sessionId) => {
+      socket.join(sessionId);
     });
 
     return () => {
@@ -106,8 +67,6 @@ function App() {
     if (inputMessage.trim()) {
       const message = {
         text: inputMessage,
-        sender: 'user',
-        timestamp: new Date().toISOString(),
         sessionId: sessionId
       };
       socket.emit('sendMessage', message);

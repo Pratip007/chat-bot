@@ -7,6 +7,7 @@ const cors = require('cors');
 const path = require('path');
 const { protect, admin } = require('./src/middleware/auth');
 const authController = require('./src/controllers/authController');
+const processMessage = require('./src/controllers/chatController').processMessage;
 
 const app = express();
 const server = http.createServer(app);
@@ -76,31 +77,27 @@ app.post('/api/auth/login', authController.login);
 io.on('connection', (socket) => {
   console.log('New client connected');
 
-  socket.on('join', (userId) => {
-    socket.join(userId);
-    console.log(`Client joined room: ${userId}`);
+  socket.on('join', (sessionId) => {
+    socket.join(sessionId);
+    console.log(`Client joined room: ${sessionId}`);
   });
 
   socket.on('sendMessage', async (message) => {
     try {
       console.log('Received message:', message);
-      const newMessage = new Message({
-        userId: message.userId,
-        content: message.content,
-        attachments: message.attachments || [],
-        timestamp: new Date(),
-        isAdmin: false
+      // Call your bot logic
+      const botResponse = await processMessage({
+        text: message.text,
+        sessionId: message.sessionId,
+        userId: message.userId
       });
-
-      await newMessage.save();
-      console.log('Saved message:', newMessage);
-      
-      // Emit to specific user's room
-      io.to(message.userId).emit('message', newMessage);
-      // Also emit to admin room
-      io.emit('message', newMessage);
+      // Add sender: 'bot' for the client UI
+      botResponse.sender = 'bot';
+      // Emit the bot's response to the client
+      io.to(message.sessionId).emit('message', botResponse);
+      console.log('Sent bot response:', botResponse);
     } catch (error) {
-      console.error('Error saving message:', error);
+      console.error('Error processing message:', error);
     }
   });
 
