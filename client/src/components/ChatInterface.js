@@ -24,7 +24,7 @@ function ChatInterface() {
 
   useEffect(() => {
     // Load chat history
-    fetch(`http://localhost:5000/api/chat/history/${sessionId}`)
+    fetch(`http://localhost:5002/api/chat/history/${sessionId}`)
       .then(res => res.json())
       .then(data => {
         setMessages(data.map(msg => ({

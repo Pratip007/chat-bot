@@ -18,7 +18,7 @@ const theme = createTheme({
   },
 });
 
-const socket = io('http://localhost:5000');
+const socket = io('http://localhost:5002');
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -45,7 +45,51 @@ function App() {
     socket.emit('join', sessionId);
 
     socket.on('message', (message) => {
+      console.log('SOCKET MESSAGE:', message);
       setMessages((prevMessages) => [...prevMessages, message]);
+    });
+
+    socket.on('sendMessage', async (message) => {
+      try {
+        console.log('Received message:', message);
+
+        // Save the user message
+        const newMessage = new Message({
+          userId: message.userId,
+          content: message.content || message.text, // support both 'content' and 'text'
+          attachments: message.attachments || [],
+          timestamp: new Date(),
+          isAdmin: false
+        });
+        await newMessage.save();
+        console.log('Saved message:', newMessage);
+
+        // Emit the user message back (optional, for chat history)
+        io.to(message.userId).emit('message', {
+          text: newMessage.content,
+          sender: 'user',
+          timestamp: newMessage.timestamp,
+          sessionId: message.sessionId
+        });
+
+        // --- BOT LOGIC: Call your bot controller here ---
+        const processMessage = require('./src/controllers/chatController').processMessage;
+        const botResponse = await processMessage({
+          text: message.content || message.text,
+          sessionId: message.sessionId,
+          userId: message.userId
+        });
+
+        // Add sender: 'bot' for the client UI
+        botResponse.sender = 'bot';
+
+        // Emit the bot's response
+        io.to(message.userId).emit('message', botResponse);
+
+        console.log('Sent bot response:', botResponse);
+      } catch (error) {
+        console.error('Error saving or responding to message:', error);
+      }
     });
 
     return () => {
@@ -144,7 +188,7 @@ function App() {
             position: 'relative'
           }}
         >
-          <Typography variant="body1">{message.text}</Typography>
+          <Typography variant="body1">{message.text || '[No message]'}</Typography>
           {message.file && (
             <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 1 }}>
               <Typography variant="caption" sx={{ display: 'block' }}>

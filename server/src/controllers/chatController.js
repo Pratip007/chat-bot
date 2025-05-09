@@ -31,11 +31,13 @@ exports.processMessage = async (message) => {
     });
     await chat.save();
 
-    return {
+    const responseObj = {
       text: response,
       timestamp: new Date(),
       sessionId: message.sessionId
     };
+    console.log('processMessage response:', responseObj);
+    return responseObj;
   } catch (error) {
     console.error('Error processing message:', error);
     return {
