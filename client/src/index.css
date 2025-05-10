@@ -1,3 +1,16 @@
+:root {
+  --primary-bg: #0a0a0a;
+  --secondary-bg: #1a1a1a;
+  --accent-color: #00ff88;
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  --border-color: #2a2a2a;
+  --hover-color: #00cc6a;
+  --card-bg: #1f1f1f;
+  --gradient-start: #00ff88;
+  --gradient-end: #00cc6a;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -5,7 +18,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f0f2f5;
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
 }
 
 code {
@@ -15,6 +29,8 @@ code {
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 /* Custom Animations */
@@ -44,17 +60,17 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--secondary-bg);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: var(--accent-color);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--hover-color);
 }
 
 /* Message Animation */
@@ -67,7 +83,7 @@ code {
   display: flex;
   gap: 4px;
   padding: 8px;
-  background: #f0f0f0;
+  background: var(--secondary-bg);
   border-radius: 12px;
   width: fit-content;
 }
@@ -75,7 +91,7 @@ code {
 .typing-indicator span {
   width: 8px;
   height: 8px;
-  background: #888;
+  background: var(--accent-color);
   border-radius: 50%;
   animation: typing 1s infinite ease-in-out;
 }
@@ -95,4 +111,61 @@ code {
   50% {
     transform: translateY(-5px);
   }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+  
+  .typing-indicator {
+    padding: 6px;
+  }
+  
+  .typing-indicator span {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* Modern Card Styles */
+.card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
+}
+
+/* Button Styles */
+.button {
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  color: var(--text-primary);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+}
+
+/* Input Styles */
+.input {
+  background: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 12px;
+  border-radius: 8px;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent-color);
 } 

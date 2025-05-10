@@ -1,4 +1,5 @@
-require('dotenv').config();
+// Remove dotenv config temporarily
+// require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -8,6 +9,8 @@ const path = require('path');
 const { protect, admin } = require('./src/middleware/auth');
 const authController = require('./src/controllers/authController');
 const processMessage = require('./src/controllers/chatController').processMessage;
+const connectDB = require('./src/config/db');
+const userRoutes = require('./src/routes/userRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -37,26 +40,8 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something broke!');
 });
 
-// MongoDB connection with retry logic
-const connectWithRetry = async () => {
-  try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/chatbot';
-    console.log('Attempting to connect to MongoDB at:', mongoURI);
-    
-    await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 10000 // Increased timeout to 10 seconds
-    });
-    
-    console.log('Successfully connected to MongoDB');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    console.log('Retrying connection in 5 seconds...');
-    setTimeout(connectWithRetry, 5000);
-  }
-};
-
-// Initial connection attempt
-connectWithRetry();
+// Connect to MongoDB
+connectDB();
 
 // Message Schema
 const messageSchema = new mongoose.Schema({
@@ -72,6 +57,14 @@ const Message = mongoose.model('Message', messageSchema);
 // Authentication routes
 app.post('/api/auth/register', authController.register);
 app.post('/api/auth/login', authController.login);
+
+// Routes
+app.use('/api/users', userRoutes);
+
+// Basic route
+app.get('/', (req, res) => {
+    res.send('Chatbot API is running');
+});
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
@@ -178,43 +171,10 @@ app.get('/api/admin/download/:fileId', async (req, res) => {
   }
 });
 
-// Port configuration with fallback
-const PORT = process.env.PORT || 5002;
+// Port configuration
+const PORT = 5000;
 
-// Function to find an available port
-const findAvailablePort = async (startPort) => {
-  const net = require('net');
-  
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.unref();
-    server.on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        resolve(findAvailablePort(startPort + 1));
-      } else {
-        reject(err);
-      }
-    });
-    
-    server.listen(startPort, () => {
-      server.close(() => {
-        resolve(startPort);
-      });
-    });
-  });
-};
-
-// Server startup with error handling
-const startServer = async () => {
-  try {
-    const availablePort = await findAvailablePort(PORT);
-    server.listen(availablePort, () => {
-      console.log(`Server running on port ${availablePort}`);
-    });
-  } catch (error) {
-    console.error('Error starting server:', error);
-    process.exit(1);
-  }
-};
-
-startServer(); 
+// Start server
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+}); 
