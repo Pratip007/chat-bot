@@ -1,102 +1,91 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const processMessage = require('./chatController').processMessage;
 
-exports.register = async (req, res) => {
+exports.getUser = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { userId, username } = req.body;
 
-    // Input validation
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'All fields are required' });
+    if (!userId || !username) {
+      return res.status(400).json({ error: 'userId and username are required' });
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ error: 'Invalid email format' });
+    let user = await User.findOne({ userId });
+
+    if (!user) {
+      user = await User.create({
+        userId,
+        username,
+        messages: []
+      });
     }
 
-    // Password validation
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    res.json(user);
+  } catch (error) {
+    console.error('Error in getUser:', error);
+    res.status(500).json({ error: 'Error processing request' });
+  }
+};
+
+exports.handleChat = async (req, res) => {
+  try {
+    const { userId, message } = req.body;
+
+    if (!userId || !message) {
+      return res.status(400).json({ error: 'userId and message are required' });
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
+    let user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    // Create new user
-    const user = new User({
-      username,
-      email,
-      password
+    // Add user message
+    user.messages.push({
+      content: message,
+      timestamp: new Date()
+    });
+
+    // Get bot response
+    const botResponse = await processMessage({
+      text: message,
+      userId: userId
+    });
+
+    // Add bot response
+    user.messages.push({
+      content: botResponse.text,
+      timestamp: new Date()
     });
 
     await user.save();
 
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
-
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
+    res.json({
+      userMessage: message,
+      botResponse: botResponse.text,
+      user: user
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Error registering user' });
+    console.error('Error in handleChat:', error);
+    res.status(500).json({ error: 'Error processing chat' });
   }
 };
 
-exports.login = async (req, res) => {
+exports.getChatHistory = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { userId } = req.body;
 
-    // Input validation
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
     }
 
-    // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ userId });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
-    });
+    res.json(user.messages);
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Error logging in' });
+    console.error('Error in getChatHistory:', error);
+    res.status(500).json({ error: 'Error fetching chat history' });
   }
 }; 

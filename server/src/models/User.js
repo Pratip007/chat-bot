@@ -1,17 +1,5 @@
 const mongoose = require('mongoose');
 
-const messageSchema = new mongoose.Schema({
-    content: String,
-    sender: {
-        type: String,
-        required: true
-    },
-    timestamp: {
-        type: Date,
-        default: Date.now
-    }
-});
-
 const userSchema = new mongoose.Schema({
     userId: {
         type: String,
@@ -22,10 +10,13 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    messages: {
-        type: [messageSchema],
-        default: []
-    }
+    messages: [{
+        content: String,
+        timestamp: {
+            type: Date,
+            default: Date.now
+        }
+    }]
 }, { timestamps: true });
 
 // Drop all indexes and recreate only the ones we need

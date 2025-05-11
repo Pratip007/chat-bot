@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import io from 'socket.io-client';
 import SendIcon from '@mui/icons-material/Send';
 
@@ -8,26 +7,52 @@ const socket = io('http://localhost:5000');
 function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [sessionId] = useState(uuidv4());
+  const [userId] = useState('498486684'); // Your specific userId
+  const [username] = useState('John'); // Your specific username
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
+    // Send userId and username to server API
+    const sendUserData = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userId,
+            username: username
+          })
+        });
+        
+        const data = await response.json();
+        console.log('User data sent successfully:', data);
+      } catch (error) {
+        console.error('Error sending user data:', error);
+      }
+    };
+
+    sendUserData();
+
     // Load chat history
-    fetch(`http://localhost:5002/api/chat/history/${sessionId}`)
-      .then(res => res.json())
-      .then(data => {
-        const userMessages = data.map(msg => ({
-          text: msg.message,
-          isBot: false,
-          timestamp: new Date(msg.timestamp)
-        }));
-        const botMessages = data.map(msg => ({
-          text: msg.response,
-          isBot: true,
-          timestamp: new Date(msg.timestamp)
-        }));
-        setMessages([...userMessages, ...botMessages].sort((a, b) => a.timestamp - b.timestamp));
-      });
+    fetch('http://localhost:5000/api/chat/history', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: userId
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      setMessages(data.map(msg => ({
+        text: msg.content,
+        isBot: false,
+        timestamp: new Date(msg.timestamp)
+      })));
+    });
 
     // Socket event listeners
     socket.on('message', (message) => {
@@ -41,7 +66,7 @@ function ChatInterface() {
     return () => {
       socket.off('message');
     };
-  }, [sessionId]);
+  }, [userId, username]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -51,19 +76,36 @@ function ChatInterface() {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const message = {
-      text: input,
-      sessionId,
-      timestamp: new Date()
-    };
+    // Send message to server
+    fetch('http://localhost:5000/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: userId,
+        message: input
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      setMessages(prev => [...prev, 
+        {
+          text: input,
+          isBot: false,
+          timestamp: new Date()
+        },
+        {
+          text: data.botResponse,
+          isBot: true,
+          timestamp: new Date()
+        }
+      ]);
+    })
+    .catch(error => {
+      console.error('Error sending message:', error);
+    });
 
-    setMessages(prev => [...prev, {
-      text: input,
-      isBot: false,
-      timestamp: new Date()
-    }]);
-
-    socket.emit('sendMessage', message);
     setInput('');
   };
 
@@ -73,6 +115,7 @@ function ChatInterface() {
         <div className="header-content">
           <span className="header-icon">💬</span>
           Customer Service Chat
+          <span className="user-info">({username})</span>
         </div>
       </div>
       

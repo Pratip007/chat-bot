@@ -26,31 +26,26 @@ exports.processMessage = async (message) => {
     const chat = new Chat({
       message: message.text,
       response: response,
-      sessionId: message.sessionId,
       userId: message.userId
     });
     await chat.save();
 
-    const responseObj = {
+    return {
       text: response,
-      timestamp: new Date(),
-      sessionId: message.sessionId
+      timestamp: new Date()
     };
-    console.log('processMessage response:', responseObj);
-    return responseObj;
   } catch (error) {
     console.error('Error processing message:', error);
     return {
       text: 'Sorry, I encountered an error. Please try again.',
-      timestamp: new Date(),
-      sessionId: message.sessionId
+      timestamp: new Date()
     };
   }
 };
 
-exports.getChatHistory = async (sessionId) => {
+exports.getChatHistory = async (userId) => {
   try {
-    const chats = await Chat.find({ sessionId })
+    const chats = await Chat.find({ userId })
       .sort({ timestamp: 1 })
       .limit(50);
     return chats;
@@ -66,8 +61,7 @@ exports.getAllChats = async (page = 1, limit = 20) => {
     const chats = await Chat.find()
       .sort({ timestamp: -1 })
       .skip(skip)
-      .limit(limit)
-      .populate('userId', 'username email');
+      .limit(limit);
     
     const total = await Chat.countDocuments();
     

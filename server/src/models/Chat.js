@@ -15,12 +15,11 @@ const chatSchema = new mongoose.Schema({
   },
   sessionId: {
     type: String,
-    required: true
+    required: false
   },
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: false
+    type: String,
+    required: true
   }
 });
 

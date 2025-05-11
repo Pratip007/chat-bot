@@ -6,11 +6,9 @@ const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const { protect, admin } = require('./src/middleware/auth');
 const authController = require('./src/controllers/authController');
 const processMessage = require('./src/controllers/chatController').processMessage;
 const connectDB = require('./src/config/db');
-const userRoutes = require('./src/routes/userRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -34,32 +32,13 @@ const io = socketIo(server, {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
-});
-
 // Connect to MongoDB
 connectDB();
 
-// Message Schema
-const messageSchema = new mongoose.Schema({
-  userId: String,
-  content: String,
-  attachments: [String],
-  timestamp: { type: Date, default: Date.now },
-  isAdmin: { type: Boolean, default: false }
-});
-
-const Message = mongoose.model('Message', messageSchema);
-
-// Authentication routes
-app.post('/api/auth/register', authController.register);
-app.post('/api/auth/login', authController.login);
-
 // Routes
-app.use('/api/users', userRoutes);
+app.post('/api/user', authController.getUser);
+app.post('/api/chat', authController.handleChat);
+app.get('/api/chat/history', authController.getChatHistory);
 
 // Basic route
 app.get('/', (req, res) => {
@@ -99,76 +78,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// Protected routes
-app.get('/api/messages/:userId', protect, async (req, res) => {
-  try {
-    console.log('Fetching messages for user:', req.params.userId);
-    const messages = await Message.find({ userId: req.params.userId })
-      .sort({ timestamp: 1 });
-    console.log('Found messages:', messages);
-    res.json(messages);
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    res.status(500).json({ error: 'Error fetching messages' });
-  }
-});
-
-// Admin routes
-app.get('/api/admin/messages', protect, admin, async (req, res) => {
-  try {
-    console.log('Fetching all messages for admin');
-    const messages = await Message.find()
-      .sort({ timestamp: -1 })
-      .limit(100);
-    console.log('Found messages:', messages);
-    res.json(messages);
-  } catch (error) {
-    console.error('Error fetching admin messages:', error);
-    res.status(500).json({ error: 'Error fetching messages' });
-  }
-});
-
-app.post('/api/admin/reply', protect, admin, async (req, res) => {
-  try {
-    const { userId, content } = req.body;
-    console.log('Admin reply request:', { userId, content });
-    
-    const message = new Message({
-      userId,
-      content,
-      timestamp: new Date(),
-      isAdmin: true
-    });
-
-    await message.save();
-    console.log('Saved admin reply:', message);
-    
-    // Emit to specific user's room
-    io.to(userId).emit('message', message);
-    // Also emit to admin room
-    io.emit('message', message);
-    
-    res.json(message);
-  } catch (error) {
-    console.error('Error sending admin reply:', error);
-    res.status(500).json({ error: 'Error sending reply' });
-  }
-});
-
-app.get('/api/admin/download/:fileId', async (req, res) => {
-  try {
-    const message = await Message.findOne({ 'file._id': req.params.fileId });
-    if (!message || !message.file) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    res.setHeader('Content-Type', message.file.type);
-    res.setHeader('Content-Disposition', `attachment; filename="${message.file.name}"`);
-    res.send(message.file.data);
-  } catch (error) {
-    console.error('Error downloading file:', error);
-    res.status(500).json({ error: 'Error downloading file' });
-  }
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
 });
 
 // Port configuration

@@ -35,7 +35,7 @@ const theme = createTheme({
   },
 });
 
-const socket = io('http://localhost:5002');
+const socket = io('http://localhost:5000');
 
 function App() {
   const [messages, setMessages] = useState([]);
