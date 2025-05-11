@@ -6,14 +6,31 @@ import { v4 as uuidv4 } from 'uuid';
 
 const theme = createTheme({
   palette: {
+    mode: 'dark',
     primary: {
-      main: '#2196f3',
+      main: '#a855f7',
+      light: '#c084fc',
+      dark: '#7e22ce',
     },
     secondary: {
       main: '#f50057',
     },
     background: {
-      default: '#f5f5f5',
+      default: '#0a0a0a',
+      paper: '#141414',
+    },
+    text: {
+      primary: '#ffffff',
+      secondary: '#a3a3a3',
+    },
+  },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+        },
+      },
     },
   },
 });
@@ -192,7 +209,7 @@ function App() {
       <Box
         sx={{
           minHeight: '100vh',
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+          background: 'linear-gradient(135deg, #0a0a0a 0%, #141414 100%)',
           py: 4
         }}
       >
@@ -205,21 +222,24 @@ function App() {
               flexDirection: 'column',
               borderRadius: 2,
               overflow: 'hidden',
-              background: 'white'
+              background: 'rgba(20, 20, 20, 0.95)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(168, 85, 247, 0.2)',
             }}
           >
             {/* Header */}
             <Box
               sx={{
                 p: 2,
-                background: 'linear-gradient(45deg, #2196f3 30%, #21CBF3 90%)',
+                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(192, 132, 252, 0.1))',
                 color: 'white',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 1
+                gap: 1,
+                borderBottom: '1px solid rgba(168, 85, 247, 0.2)',
               }}
             >
-              <BotIcon sx={{ fontSize: 32 }} />
+              <BotIcon sx={{ fontSize: 32, color: '#a855f7' }} />
               <Typography variant="h5" component="h1">
                 Customer Service Chat
               </Typography>
@@ -234,7 +254,7 @@ function App() {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
-                background: '#f8f9fa'
+                background: 'transparent',
               }}
             >
               {messages.map((message, index) => renderMessage(message, index))}
@@ -247,10 +267,11 @@ function App() {
               onSubmit={sendMessage}
               sx={{
                 p: 2,
-                backgroundColor: 'white',
-                borderTop: '1px solid #e0e0e0',
+                backgroundColor: 'rgba(20, 20, 20, 0.95)',
+                borderTop: '1px solid rgba(168, 85, 247, 0.2)',
                 display: 'flex',
-                gap: 1
+                gap: 1,
+                backdropFilter: 'blur(10px)',
               }}
             >
               <input
@@ -261,12 +282,11 @@ function App() {
               />
               <IconButton
                 onClick={handleFileUpload}
-                color="primary"
                 sx={{
-                  bgcolor: 'primary.light',
-                  color: 'white',
+                  bgcolor: 'rgba(168, 85, 247, 0.1)',
+                  color: '#a855f7',
                   '&:hover': {
-                    bgcolor: 'primary.main'
+                    bgcolor: 'rgba(168, 85, 247, 0.2)',
                   }
                 }}
               >
@@ -281,18 +301,30 @@ function App() {
                 size="small"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 2
-                  }
+                    borderRadius: 2,
+                    backgroundColor: 'rgba(26, 26, 26, 0.8)',
+                    '& fieldset': {
+                      borderColor: 'rgba(168, 85, 247, 0.2)',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'rgba(168, 85, 247, 0.4)',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#a855f7',
+                    },
+                  },
+                  '& .MuiInputBase-input': {
+                    color: 'white',
+                  },
                 }}
               />
               <IconButton
                 type="submit"
-                color="primary"
                 sx={{
-                  bgcolor: 'primary.main',
+                  bgcolor: '#a855f7',
                   color: 'white',
                   '&:hover': {
-                    bgcolor: 'primary.dark'
+                    bgcolor: '#7e22ce',
                   }
                 }}
               >
