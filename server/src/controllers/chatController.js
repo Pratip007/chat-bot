@@ -11,8 +11,15 @@ const responseMap = {
 
 exports.processMessage = async (message) => {
   try {
+    // If a file is received, reply with a special message
+    if (message.hasFile) {
+      return {
+        text: 'Hello! I received your file successfully. Thank you for sharing it',
+        timestamp: new Date()
+      };
+    }
     const lowerMessage = message.text.toLowerCase();
-    let response = 'I\'m not sure I understand. Could you please rephrase your question?';
+    let response = 'Our agent is connecting with you. Please wait just a moment . . . .';
 
     // Check for matching responses
     for (const [key, value] of Object.entries(responseMap)) {
