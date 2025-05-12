@@ -107,4 +107,24 @@ exports.getChatHistory = async (req, res) => {
     console.error('Error in getChatHistory:', error);
     res.status(500).json({ error: 'Error fetching chat history' });
   }
+};
+
+exports.getChatHistoryByParam = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user.messages);
+  } catch (error) {
+    console.error('Error in getChatHistoryByParam:', error);
+    res.status(500).json({ error: 'Error fetching chat history' });
+  }
 }; 

@@ -48,7 +48,8 @@ connectDB();
 // Routes
 app.post('/api/user', authController.getUser);
 app.post('/api/chat', upload.single('file'), authController.handleChat);
-app.get('/api/chat/history', authController.getChatHistory);
+app.post('/api/chat/history', authController.getChatHistory);
+app.get('/api/chat/history/:userId', authController.getChatHistoryByParam);
 
 // Basic route
 app.get('/', (req, res) => {
