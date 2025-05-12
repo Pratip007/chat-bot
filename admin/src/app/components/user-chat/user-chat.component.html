@@ -1,0 +1,132 @@
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 p-4">
+  <!-- Users List Panel -->
+  <div class="md:col-span-1 bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="p-4 bg-primary text-white font-semibold">
+      <h2 class="text-lg">Users</h2>
+    </div>
+
+    <div class="p-2" *ngIf="isLoading && users.length === 0">
+      <div class="flex justify-center py-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    </div>
+
+    <div *ngIf="users.length === 0 && !isLoading" class="p-4 text-center text-gray-500">
+      No users found
+    </div>
+
+    <div class="overflow-y-auto max-h-[calc(100vh-12rem)]">
+      <div
+        *ngFor="let user of users"
+        (click)="selectUser(user.id)"
+        class="flex items-center p-3 border-b cursor-pointer hover:bg-gray-50"
+        [class.bg-gray-100]="selectedUser?.id === user.id"
+      >
+        <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
+          <img *ngIf="user.avatar" [src]="user.avatar" alt="User avatar" class="w-full h-full object-cover">
+          <div *ngIf="!user.avatar" class="w-full h-full flex items-center justify-center text-gray-500">
+            {{user.name.charAt(0) || 'U'}}
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900 truncate">{{user.name}}</p>
+          <p class="text-xs text-gray-500 truncate">{{user.email}}</p>
+        </div>
+        <div *ngIf="user.status === 'active'" class="h-2 w-2 bg-green-500 rounded-full"></div>
+        <div *ngIf="user.status === 'inactive'" class="h-2 w-2 bg-gray-400 rounded-full"></div>
+        <div *ngIf="user.status === 'banned'" class="h-2 w-2 bg-red-500 rounded-full"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Panel -->
+  <div class="md:col-span-3 bg-white rounded-lg shadow-md flex flex-col min-h-[30rem]">
+    <div *ngIf="!selectedUser" class="flex-1 flex items-center justify-center text-gray-400">
+      <p>Select a user to start chatting</p>
+    </div>
+
+    <ng-container *ngIf="selectedUser">
+      <!-- Header -->
+      <div class="p-4 border-b flex items-center">
+        <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
+          <img *ngIf="selectedUser.avatar" [src]="selectedUser.avatar" alt="User avatar" class="w-full h-full object-cover">
+          <div *ngIf="!selectedUser.avatar" class="w-full h-full flex items-center justify-center text-gray-500">
+            {{selectedUser.name.charAt(0) || 'U'}}
+          </div>
+        </div>
+        <div>
+          <h3 class="text-lg font-medium">{{selectedUser.name}}</h3>
+          <p class="text-sm text-gray-500">{{selectedUser.email}}</p>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 max-h-[calc(100vh-20rem)]">
+        <div *ngIf="isLoading" class="flex justify-center py-4">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+
+        <div *ngIf="messages.length === 0 && !isLoading" class="text-center py-4 text-gray-400">
+          No messages yet
+        </div>
+
+        <ng-container *ngFor="let message of messages; let i = index; let isOdd = odd">
+          <div
+            class="flex"
+            [ngClass]="{'justify-end': isOdd, 'justify-start': !isOdd}"
+          >
+            <div
+              class="max-w-[75%] px-4 py-2 rounded-lg"
+              [ngClass]="{
+                'bg-primary text-white rounded-br-none': isOdd,
+                'bg-gray-200 text-gray-800 rounded-bl-none': !isOdd
+              }"
+            >
+              <div class="text-sm">{{message.content}}</div>
+              <div class="text-xs mt-1 opacity-75 text-right">
+                {{message.timestamp | date:'short'}}
+              </div>
+
+              <!-- File Attachment -->
+              <div *ngIf="message.file" class="mt-2 p-2 bg-white bg-opacity-10 rounded">
+                <div *ngIf="message.file.mimetype.includes('image')" class="mt-2">
+                  <img [src]="message.file.data" [alt]="message.file.originalname" class="max-w-full rounded max-h-60">
+                </div>
+                <div *ngIf="!message.file.mimetype.includes('image')" class="flex items-center gap-2 text-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <a [href]="message.file.data" [download]="message.file.originalname" class="underline">
+                    {{message.file.originalname}}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+
+      <!-- Input -->
+      <div class="p-4 border-t">
+        <form (ngSubmit)="sendMessage()" class="flex gap-2">
+          <input
+            type="text"
+            [(ngModel)]="newMessage"
+            name="message"
+            class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring focus:ring-primary"
+            placeholder="Type your message here..."
+            [disabled]="isLoading"
+          >
+          <button
+            type="submit"
+            class="bg-primary text-white px-4 py-2 rounded-lg disabled:opacity-50"
+            [disabled]="!newMessage.trim() || isLoading"
+          >
+            <span *ngIf="!isLoading">Send</span>
+            <div *ngIf="isLoading" class="h-5 w-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+          </button>
+        </form>
+      </div>
+    </ng-container>
+  </div>
+</div>

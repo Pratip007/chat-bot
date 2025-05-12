@@ -5,21 +5,23 @@ import { UserService } from '../../services/user.service';
 import { MessageService } from '../../services/message.service';
 import { User } from '../../models/user.model';
 import { Message } from '../../models/message.model';
+import { HttpClientModule } from '@angular/common/http';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, HttpClientModule],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
 export class DashboardComponent implements OnInit {
   users: User[] = [];
-  unreadMessages: Message[] = [];
+  unreadMessages: any[] = [];
   totalUsers = 0;
   activeUsers = 0;
   inactiveUsers = 0;
   totalMessages = 0;
+  isLoading = false;
 
   constructor(
     private userService: UserService,
@@ -29,27 +31,48 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadUsers();
-    this.loadMessages();
   }
 
   loadUsers(): void {
-    this.userService.getUsers().subscribe(users => {
-      this.users = users;
-      this.totalUsers = users.length;
-      this.activeUsers = users.filter(u => u.status === 'active').length;
-      this.inactiveUsers = users.filter(u => u.status === 'inactive' || u.status === 'banned').length;
-    });
-  }
+    this.isLoading = true;
+    this.userService.getUsers().subscribe({
+      next: (users) => {
+        this.users = users;
+        this.totalUsers = users.length;
+        this.activeUsers = users.length; // All users are considered active for now
+        this.inactiveUsers = 0; // No inactive users for now
+        this.totalMessages = users.reduce((total, user) => {
+          return total + (user.messages?.length || 0);
+        }, 0);
 
-  loadMessages(): void {
-    this.messageService.getMessages().subscribe(messages => {
-      this.totalMessages = messages.length;
-      this.unreadMessages = messages.filter(m => m.status === 'unread');
+        // Get latest messages from users for unread messages section
+        this.unreadMessages = [];
+        users.forEach(user => {
+          if (user.messages && user.messages.length > 0) {
+            const latestMessage = user.messages[user.messages.length - 1];
+            this.unreadMessages.push({
+              userId: user.id,
+              content: latestMessage.content,
+              createdAt: latestMessage.timestamp,
+              status: 'unread'
+            });
+          }
+        });
+
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Error loading users:', err);
+        this.isLoading = false;
+      }
     });
   }
 
   viewUserMessages(userId: string): void {
-    this.router.navigate(['/users', userId]);
+    // Navigate to chat interface with selected user ID
+    this.router.navigate(['/chat'], {
+      queryParams: { userId: userId }
+    });
   }
 
   getUserAvatar(userId: string): string | undefined {
@@ -65,6 +88,7 @@ export class DashboardComponent implements OnInit {
   }
 
   getUserInitial(userId: string): string {
-    return this.users.find(u => u.id === userId)?.name?.charAt(0) || 'U';
+    const name = this.users.find(u => u.id === userId)?.name;
+    return name ? name.charAt(0) : 'U';
   }
 }

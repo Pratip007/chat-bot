@@ -1,6 +1,16 @@
 const User = require('../models/User');
 const processMessage = require('./chatController').processMessage;
 
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({}, { userId: 1, username: 1, createdAt: 1, updatedAt: 1 });
+    res.json(users);
+  } catch (error) {
+    console.error('Error in getAllUsers:', error);
+    res.status(500).json({ error: 'Error fetching users' });
+  }
+};
+
 exports.getUser = async (req, res) => {
   try {
     const { userId, username } = req.body;
@@ -126,5 +136,25 @@ exports.getChatHistoryByParam = async (req, res) => {
   } catch (error) {
     console.error('Error in getChatHistoryByParam:', error);
     res.status(500).json({ error: 'Error fetching chat history' });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error in getUserById:', error);
+    res.status(500).json({ error: 'Error fetching user details' });
   }
 }; 

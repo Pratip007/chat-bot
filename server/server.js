@@ -46,6 +46,8 @@ app.use(express.urlencoded({ extended: true }));
 connectDB();
 
 // Routes
+app.get('/api/users', authController.getAllUsers);
+app.get('/api/users/:userId', authController.getUserById);
 app.post('/api/user', authController.getUser);
 app.post('/api/chat', upload.single('file'), authController.handleChat);
 app.post('/api/chat/history', authController.getChatHistory);

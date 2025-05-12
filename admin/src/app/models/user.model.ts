@@ -1,3 +1,5 @@
+import { ChatMessage } from './chat-message.model';
+
 export interface User {
   id: string;
   name: string;
@@ -7,4 +9,5 @@ export interface User {
   lastActive?: Date;
   role: 'user' | 'admin';
   status: 'active' | 'inactive' | 'banned';
+  messages?: ChatMessage[];
 }

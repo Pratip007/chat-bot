@@ -1,75 +1,81 @@
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Observable, map } from 'rxjs';
 import { User } from '../models/user.model';
+import { ChatMessage } from '../models/chat-message.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
-  // Mock data - replace with actual API calls
-  private users: User[] = [
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      createdAt: new Date('2023-01-15'),
-      lastActive: new Date('2023-06-20'),
-      role: 'user',
-      status: 'active',
-      avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=3B82F6&color=fff'
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane@example.com',
-      createdAt: new Date('2023-02-10'),
-      lastActive: new Date('2023-06-15'),
-      role: 'user',
-      status: 'active',
-      avatar: 'https://ui-avatars.com/api/?name=Jane+Smith&background=10B981&color=fff'
-    },
-    {
-      id: '3',
-      name: 'Admin User',
-      email: 'admin@example.com',
-      createdAt: new Date('2023-01-01'),
-      lastActive: new Date('2023-06-22'),
-      role: 'admin',
-      status: 'active',
-      avatar: 'https://ui-avatars.com/api/?name=Admin+User&background=1E40AF&color=fff'
-    },
-    {
-      id: '4',
-      name: 'Bob Johnson',
-      email: 'bob@example.com',
-      createdAt: new Date('2023-03-15'),
-      lastActive: new Date('2023-05-10'),
-      role: 'user',
-      status: 'inactive',
-      avatar: 'https://ui-avatars.com/api/?name=Bob+Johnson&background=EF4444&color=fff'
-    }
-  ];
+  private apiUrl = 'http://localhost:5000/api';
 
-  constructor() { }
+  constructor(private http: HttpClient) { }
 
+  // Get all users
   getUsers(): Observable<User[]> {
-    return of(this.users);
+    return this.getAllUsersFromServer();
   }
 
-  getUserById(id: string): Observable<User | undefined> {
-    const user = this.users.find(u => u.id === id);
-    return of(user);
+  // Get all users from the server
+  getAllUsersFromServer(): Observable<User[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/users`).pipe(
+      map(users => users.map(user => ({
+        id: user.userId,
+        name: user.username,
+        email: user.username + '@example.com', // Fallback if email not provided by API
+        createdAt: new Date(user.createdAt || Date.now()),
+        lastActive: user.lastActive ? new Date(user.lastActive) : undefined,
+        role: 'user',
+        status: 'active',
+        avatar: `https://ui-avatars.com/api/?name=${user.username}&background=3B82F6&color=fff`
+      })))
+    );
   }
 
-  updateUserStatus(userId: string, status: 'active' | 'inactive' | 'banned'): Observable<User | undefined> {
-    const userIndex = this.users.findIndex(u => u.id === userId);
-    if (userIndex !== -1) {
-      this.users[userIndex] = {
-        ...this.users[userIndex],
-        status
-      };
-      return of(this.users[userIndex]);
-    }
-    return of(undefined);
+  // Get user by ID
+  getUserById(id: string): Observable<User> {
+    return this.http.get<any>(`${this.apiUrl}/users/${id}`).pipe(
+      map(user => ({
+        id: user.userId,
+        name: user.username,
+        email: user.username + '@example.com', // Fallback if email not provided by API
+        createdAt: new Date(user.createdAt || Date.now()),
+        lastActive: user.lastActive ? new Date(user.lastActive) : undefined,
+        role: 'user',
+        status: 'active',
+        avatar: `https://ui-avatars.com/api/?name=${user.username}&background=3B82F6&color=fff`
+      }))
+    );
+  }
+
+  // Get chat history for a user
+  getChatHistory(userId: string): Observable<ChatMessage[]> {
+    return this.http.get<ChatMessage[]>(`${this.apiUrl}/chat/history/${userId}`);
+  }
+
+  // Send a message to a user
+  sendMessage(userId: string, content: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/chat`, {
+      userId,
+      message: content,
+      adminId: '3' // This should be the actual admin ID from auth
+    });
+  }
+
+  // Update user status
+  updateUserStatus(userId: string, status: 'active' | 'inactive' | 'banned'): Observable<User> {
+    return this.http.patch<any>(`${this.apiUrl}/users/${userId}`, { status }).pipe(
+      map(user => ({
+        id: user.userId,
+        name: user.username,
+        email: user.username + '@example.com',
+        createdAt: new Date(user.createdAt || Date.now()),
+        lastActive: user.lastActive ? new Date(user.lastActive) : undefined,
+        role: 'user',
+        status: status,
+        avatar: `https://ui-avatars.com/api/?name=${user.username}&background=3B82F6&color=fff`
+      }))
+    );
   }
 }
