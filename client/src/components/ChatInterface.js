@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import SendIcon from '@mui/icons-material/Send';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import CloseIcon from '@mui/icons-material/Close';
 
 const socket = io('http://localhost:5000');
 
@@ -9,6 +11,9 @@ function ChatInterface() {
   const [input, setInput] = useState('');
   const [userId, setUserId] = useState('');
   const [username, setUsername] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -42,9 +47,23 @@ function ChatInterface() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = (e) => {
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() && !selectedFile) return;
 
     // Get latest userId from sessionStorage in case it was updated
     const userData = JSON.parse(sessionStorage.getItem('userData') || '{}');
@@ -53,30 +72,35 @@ function ChatInterface() {
     
     console.log('Current username:', currentUsername);
     
-    const requestData = {
-      userId: currentUserId,
-      message: input
-    };
+    const formData = new FormData();
+    formData.append('userId', currentUserId);
+    formData.append('message', input);
+    if (selectedFile) {
+      formData.append('file', selectedFile);
+    }
     
-    console.log('Sending message request:', requestData);
+    console.log('Sending message request with file:', selectedFile?.name);
 
-    // Send message to server
-    fetch('http://localhost:5000/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestData)
-    })
-    .then(res => res.json())
-    .then(data => {
+    try {
+      const response = await fetch('http://localhost:5000/api/chat', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
       console.log('Server response:', data);
+      
       setMessages(prev => [...prev, 
         {
           text: input,
           isBot: false,
           timestamp: new Date(),
-          username: currentUsername
+          username: currentUsername,
+          file: selectedFile ? {
+            name: selectedFile.name,
+            type: selectedFile.type,
+            data: data.fileData
+          } : null
         },
         {
           text: data.botResponse,
@@ -85,12 +109,15 @@ function ChatInterface() {
           username: 'Bot'
         }
       ]);
-    })
-    .catch(error => {
-      console.error('Error sending message:', error);
-    });
 
-    setInput('');
+      setInput('');
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   };
 
   return (
@@ -116,6 +143,25 @@ function ChatInterface() {
                 </div>
               )}
               <div className="message-text">{message.text}</div>
+              {message.file && (
+                <div className="message-file">
+                  {message.file.type.startsWith('image/') ? (
+                    <img 
+                      src={message.file.data} 
+                      alt={message.file.name}
+                      className="message-image"
+                    />
+                  ) : (
+                    <a 
+                      href={message.file.data} 
+                      download={message.file.name}
+                      className="file-link"
+                    >
+                      📎 {message.file.name}
+                    </a>
+                  )}
+                </div>
+              )}
               <div className="message-time">
                 {message.timestamp.toLocaleTimeString()}
               </div>
@@ -126,6 +172,15 @@ function ChatInterface() {
       </div>
 
       <div className="chat-input-container">
+        {/* File preview always above the form */}
+        {selectedFile && (
+          <div className="selected-file">
+            <span>{selectedFile.name}</span>
+            <button type="button" onClick={removeSelectedFile} className="remove-file">
+              <CloseIcon />
+            </button>
+          </div>
+        )}
         <form onSubmit={handleSend} className="chat-form">
           <input
             type="text"
@@ -134,10 +189,24 @@ function ChatInterface() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+            id="file-input"
+          />
+          <button 
+            type="button"
+            className="button attach-button"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <AttachFileIcon />
+          </button>
           <button 
             type="submit"
             className="button"
-            disabled={!input.trim()}
+            disabled={!input.trim() && !selectedFile}
           >
             <SendIcon />
           </button>
@@ -257,7 +326,7 @@ function ChatInterface() {
           font-size: 0.75em;
           align-self: flex-end;
           margin-top: 4px;
-          color:rgb(49, 49, 49);
+          color:rgb(219, 219, 219);
           opacity: 0.7;
           padding-right: 10px;
         }
@@ -325,58 +394,165 @@ function ChatInterface() {
             border-radius: 0;
             height: 100vh;
           }
-          
           .chat-header {
             padding: 16px;
             font-size: 1.2em;
           }
-          
           .chat-messages {
             padding: 20px 16px;
             gap: 16px;
           }
-          
           .message {
             max-width: 90%;
           }
-          
           .chat-input-container {
             padding: 16px;
           }
-          
-          .chat-input {
-            padding: 14px 20px;
-            font-size: 1em;
+          .chat-form {
+            flex-direction: row;
+            align-items: stretch;
+            gap: 8px;
           }
-          
+          .selected-file {
+            font-size: 0.85em;
+            padding: 4px 8px;
+            margin-bottom: 4px;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .chat-input {
+            flex: 1;
+            padding: 18px 14px;
+            font-size: 1.1em;
+            min-width: 0;
+            width: 1%;
+            box-sizing: border-box;
+          }
           .button {
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
+            align-self: center;
+            flex-shrink: 0;
+          }
+          .message-image {
+            max-width: 200px;
+            max-height: 200px;
           }
         }
-
         @media (max-width: 480px) {
           .chat-header {
             padding: 12px;
             font-size: 1.1em;
           }
-          
           .user-info {
             font-size: 0.9em;
             padding: 4px 8px;
           }
-          
           .message {
             max-width: 95%;
           }
-          
           .message-text {
             font-size: 1em;
           }
-          
           .chat-input-container {
             padding: 12px;
           }
+          .chat-form {
+            flex-direction: row;
+            align-items: stretch;
+            gap: 6px;
+          }
+          .selected-file {
+            font-size: 0.8em;
+            padding: 3px 6px;
+            margin-bottom: 4px;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .chat-input {
+            flex: 1;
+            padding: 16px 10px;
+            font-size: 1em;
+            min-width: 0;
+            width: 1%;
+            box-sizing: border-box;
+          }
+          .button {
+            width: 40px;
+            height: 40px;
+            align-self: center;
+            flex-shrink: 0;
+          }
+          .message-image {
+            max-width: 150px;
+            max-height: 150px;
+          }
+        }
+
+        .selected-file {
+          display: flex;
+          align-items: center;
+          background: rgba(168,85,247,0.1);
+          padding: 8px 12px;
+          border-radius: 20px;
+          margin-bottom: 8px;
+          font-size: 0.9em;
+          color: #a855f7;
+        }
+
+        .remove-file {
+          background: none;
+          border: none;
+          color: #a855f7;
+          cursor: pointer;
+          padding: 4px;
+          margin-left: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .remove-file:hover {
+          color: #7c2ae8;
+        }
+
+        .message-image {
+          max-width: 300px;
+          max-height: 300px;
+          border-radius: 12px;
+          margin-top: 8px;
+        }
+
+        .message-file {
+          margin-top: 8px;
+          padding: 8px 12px;
+          background: rgba(168,85,247,0.1);
+          border-radius: 12px;
+        }
+
+        .file-link {
+          color: #a855f7;
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.9em;
+        }
+
+        .file-link:hover {
+          color: #7c2ae8;
+        }
+
+        .attach-button {
+          background: #231942;
+        }
+
+        .attach-button:hover {
+          background: #2d1f4a;
         }
       `}</style>
     </div>

@@ -29,9 +29,10 @@ exports.getUser = async (req, res) => {
 exports.handleChat = async (req, res) => {
   try {
     const { userId, message } = req.body;
+    const file = req.file;
 
-    if (!userId || !message) {
-      return res.status(400).json({ error: 'userId and message are required' });
+    if (!userId || (!message && !file)) {
+      return res.status(400).json({ error: 'userId and either message or file are required' });
     }
 
     let user = await User.findOne({ userId });
@@ -39,16 +40,33 @@ exports.handleChat = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Add user message
-    user.messages.push({
-      content: message,
+    // Prepare message object
+    const messageObj = {
+      content: message || '',
       timestamp: new Date()
-    });
+    };
+
+    // Add file information if a file was uploaded
+    if (file) {
+      // Convert buffer to base64
+      const base64Data = file.buffer.toString('base64');
+      messageObj.file = {
+        filename: file.originalname,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        data: `data:${file.mimetype};base64,${base64Data}`
+      };
+    }
+
+    // Add user message
+    user.messages.push(messageObj);
 
     // Get bot response
     const botResponse = await processMessage({
-      text: message,
-      userId: userId
+      text: message || 'File uploaded',
+      userId: userId,
+      hasFile: !!file
     });
 
     // Add bot response
@@ -60,8 +78,9 @@ exports.handleChat = async (req, res) => {
     await user.save();
 
     res.json({
-      userMessage: message,
+      userMessage: message || 'File uploaded',
       botResponse: botResponse.text,
+      fileData: file ? messageObj.file.data : null,
       user: user
     });
   } catch (error) {

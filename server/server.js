@@ -6,12 +6,22 @@ const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
 const authController = require('./src/controllers/authController');
 const processMessage = require('./src/controllers/chatController').processMessage;
 const connectDB = require('./src/config/db');
 
 const app = express();
 const server = http.createServer(app);
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 // CORS configuration
 const corsOptions = {
@@ -37,7 +47,7 @@ connectDB();
 
 // Routes
 app.post('/api/user', authController.getUser);
-app.post('/api/chat', authController.handleChat);
+app.post('/api/chat', upload.single('file'), authController.handleChat);
 app.get('/api/chat/history', authController.getChatHistory);
 
 // Basic route
@@ -81,6 +91,12 @@ io.on('connection', (socket) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File size too large. Maximum size is 5MB.' });
+    }
+    return res.status(400).json({ error: err.message });
+  }
   res.status(500).json({ error: 'Something went wrong!' });
 });
 

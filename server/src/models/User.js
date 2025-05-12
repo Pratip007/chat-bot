@@ -1,5 +1,20 @@
 const mongoose = require('mongoose');
 
+const messageSchema = new mongoose.Schema({
+    content: String,
+    timestamp: {
+        type: Date,
+        default: Date.now
+    },
+    file: {
+        filename: String,
+        originalname: String,
+        mimetype: String,
+        size: Number,
+        data: String // Base64 encoded file data
+    }
+});
+
 const userSchema = new mongoose.Schema({
     userId: {
         type: String,
@@ -10,13 +25,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    messages: [{
-        content: String,
-        timestamp: {
-            type: Date,
-            default: Date.now
-        }
-    }]
+    messages: [messageSchema]
 }, { timestamps: true });
 
 // Drop all indexes and recreate only the ones we need
