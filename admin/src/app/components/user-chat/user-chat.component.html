@@ -61,7 +61,7 @@
       </div>
 
       <!-- Messages -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 max-h-[calc(100vh-20rem)]">
+      <div #messageContainer class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 max-h-[calc(100vh-20rem)]">
         <div *ngIf="isLoading" class="flex justify-center py-4">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -70,35 +70,107 @@
           No messages yet
         </div>
 
-        <ng-container *ngFor="let message of messages; let i = index; let isOdd = odd">
+        <!-- Debug Messages Count -->
+        <div *ngIf="!isLoading" class="text-xs text-gray-400 text-center mb-2">
+          Message count: {{messages.length}}
+        </div>
+
+        <ng-container *ngFor="let message of messages">
           <div
             class="flex"
-            [ngClass]="{'justify-end': isOdd, 'justify-start': !isOdd}"
+            [ngClass]="{
+              'justify-end': message.senderType === 'admin',
+              'justify-start': message.senderType === 'user' || message.senderType === 'bot'
+            }"
           >
             <div
               class="max-w-[75%] px-4 py-2 rounded-lg"
               [ngClass]="{
-                'bg-primary text-white rounded-br-none': isOdd,
-                'bg-gray-200 text-gray-800 rounded-bl-none': !isOdd
+                'bg-primary text-white rounded-br-none': message.senderType === 'admin',
+                'bg-gray-200 text-gray-800 rounded-bl-none': message.senderType === 'user' || message.senderType === 'bot'
               }"
             >
-              <div class="text-sm">{{message.content}}</div>
+              <div class="text-sm">{{message.content || 'No content available'}}</div>
               <div class="text-xs mt-1 opacity-75 text-right">
                 {{message.timestamp | date:'short'}}
               </div>
 
               <!-- File Attachment -->
               <div *ngIf="message.file" class="mt-2 p-2 bg-white bg-opacity-10 rounded">
-                <div *ngIf="message.file.mimetype.includes('image')" class="mt-2">
-                  <img [src]="message.file.data" [alt]="message.file.originalname" class="max-w-full rounded max-h-60">
+                <!-- Image files -->
+                <div *ngIf="message.file.mimetype && message.file.mimetype.includes('image')" class="mt-2">
+                  <div class="relative">
+                    <!-- Clickable image thumbnail -->
+                    <img
+                      [src]="message.file.data"
+                      [alt]="message.file.originalname"
+                      class="max-w-full rounded max-h-60 cursor-pointer border border-gray-200"
+                      (click)="openImagePreview(message.file.data, message.file.originalname)"
+                    >
+
+                    <!-- Small download button overlay in corner -->
+                    <button
+                      class="absolute bottom-2 right-2 bg-blue-500 text-white p-1.5 rounded-full opacity-80 hover:opacity-100"
+                      (click)="$event.stopPropagation(); downloadFile(message.file.data, message.file.originalname)"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <div *ngIf="!message.file.mimetype.includes('image')" class="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+
+                <!-- Other file types -->
+                <div *ngIf="!message.file.mimetype || !message.file.mimetype.includes('image')" class="flex items-center gap-2 text-sm">
+                  <!-- File icon based on type -->
+                  <svg *ngIf="getFileIcon(message.file.mimetype) === 'pdf'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
                   </svg>
-                  <a [href]="message.file.data" [download]="message.file.originalname" class="underline">
-                    {{message.file.originalname}}
-                  </a>
+                  <svg *ngIf="getFileIcon(message.file.mimetype) === 'doc'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+                  </svg>
+                  <svg *ngIf="getFileIcon(message.file.mimetype) === 'xls'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5 4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V5a1 1 0 00-1-1H5zm9 4a1 1 0 00-1-1H7a1 1 0 00-1 1v2a1 1 0 001 1h6a1 1 0 001-1V8zm-3 6a1 1 0 100-2H7a1 1 0 100 2h4z" clip-rule="evenodd" />
+                  </svg>
+                  <svg *ngIf="getFileIcon(message.file.mimetype) === 'txt'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+                  </svg>
+                  <svg *ngIf="getFileIcon(message.file.mimetype) === 'video'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm12.553 1.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                  </svg>
+                  <svg *ngIf="getFileIcon(message.file.mimetype) === 'audio'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
+                  </svg>
+                  <svg *ngIf="getFileIcon(message.file.mimetype) === 'file'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                  </svg>
+
+                  <div class="flex flex-col">
+                    <button
+                      class="text-left truncate max-w-[150px] hover:underline"
+                      (click)="openFilePreview(message.file.data, message.file.originalname, message.file.mimetype)">
+                      {{message.file.originalname}}
+                    </button>
+                    <div class="flex gap-2 mt-1">
+                      <a [href]="message.file.data" [download]="message.file.originalname"
+                        class="text-xs flex items-center underline opacity-75 hover:opacity-100"
+                        (click)="downloadFile(message.file.data, message.file.originalname)">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download
+                      </a>
+                      <button
+                        class="text-xs flex items-center underline opacity-75 hover:opacity-100"
+                        (click)="openFilePreview(message.file.data, message.file.originalname, message.file.mimetype)">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -128,5 +200,97 @@
         </form>
       </div>
     </ng-container>
+  </div>
+</div>
+
+<!-- Image Preview Modal - Simplified version matching the screenshot -->
+<div *ngIf="previewImage" class="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4" (click)="closeImagePreview()">
+  <div class="relative flex flex-col items-center max-w-2xl" (click)="$event.stopPropagation()">
+    <!-- Image container with white background -->
+    <div class="bg-white p-2 rounded-lg shadow-lg">
+      <img [src]="previewImage.url" [alt]="previewImage.name" class="max-w-full max-h-[70vh] object-contain">
+    </div>
+
+    <!-- Download button - circular blue button below the image -->
+    <div class="mt-4">
+      <button (click)="downloadFile(previewImage.url, previewImage.name); $event.stopPropagation();"
+        class="bg-blue-500 hover:bg-blue-600 text-white rounded-full p-3 shadow-lg transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- File Preview Modal -->
+<div *ngIf="previewFile" class="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4" (click)="closeFilePreview()">
+  <div class="relative max-w-4xl max-h-[90vh] w-full flex flex-col bg-white rounded-lg overflow-hidden" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="p-4 border-b flex items-center justify-between bg-gray-50">
+      <h3 class="font-medium text-gray-800 truncate">{{previewFile.name}}</h3>
+      <!-- Close button -->
+      <button class="text-gray-500 hover:text-gray-700" (click)="closeFilePreview()">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- File content -->
+    <div class="flex-1 p-4 min-h-[400px] overflow-auto">
+      <!-- PDF viewer -->
+      <div *ngIf="getFileDisplayType(previewFile.type) === 'pdf'" class="h-full w-full">
+        <iframe *ngIf="previewFile.safeUrl" [src]="previewFile.safeUrl" class="w-full h-full" frameborder="0"></iframe>
+        <div *ngIf="!previewFile.safeUrl" class="flex items-center justify-center h-full">
+          <p>PDF preview not available. Please download the file to view it.</p>
+        </div>
+      </div>
+
+      <!-- Video player -->
+      <div *ngIf="getFileDisplayType(previewFile.type) === 'video'" class="h-full flex items-center justify-center">
+        <video controls class="max-h-[80vh] max-w-full">
+          <source [src]="previewFile.url" [type]="previewFile.type">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+
+      <!-- Audio player -->
+      <div *ngIf="getFileDisplayType(previewFile.type) === 'audio'" class="h-full flex items-center justify-center">
+        <audio controls>
+          <source [src]="previewFile.url" [type]="previewFile.type">
+          Your browser does not support the audio tag.
+        </audio>
+      </div>
+
+      <!-- Text viewer -->
+      <div *ngIf="getFileDisplayType(previewFile.type) === 'text'" class="h-full w-full">
+        <iframe *ngIf="previewFile.safeUrl" [src]="previewFile.safeUrl" class="w-full h-full" frameborder="0"></iframe>
+        <div *ngIf="!previewFile.safeUrl" class="flex items-center justify-center h-full">
+          <p>Text preview not available. Please download the file to view it.</p>
+        </div>
+      </div>
+
+      <!-- Fallback for other file types -->
+      <div *ngIf="getFileDisplayType(previewFile.type) === 'other'" class="flex flex-col items-center justify-center h-full">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <p class="mt-4 text-gray-600">This file type can't be previewed directly.</p>
+        <p class="text-gray-500 text-sm">Please download the file to view its contents.</p>
+      </div>
+    </div>
+
+    <!-- Footer with download button -->
+    <div class="p-4 border-t bg-gray-50">
+      <a [href]="previewFile.url" [download]="previewFile.name"
+        class="inline-flex items-center justify-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors"
+        (click)="downloadFile(previewFile.url, previewFile.name)">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Download File
+      </a>
+    </div>
   </div>
 </div>

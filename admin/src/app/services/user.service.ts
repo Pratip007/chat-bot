@@ -51,7 +51,29 @@ export class UserService {
 
   // Get chat history for a user
   getChatHistory(userId: string): Observable<ChatMessage[]> {
-    return this.http.get<ChatMessage[]>(`${this.apiUrl}/chat/history/${userId}`);
+    console.log('Fetching chat history for user:', userId);
+    return this.http.get<any[]>(`${this.apiUrl}/chat/history/${userId}`).pipe(
+      map(messages => {
+        console.log('Raw chat history response:', messages);
+        if (!messages || messages.length === 0) {
+          console.warn('No messages found in the response');
+          return [];
+        }
+
+        return messages.map((msg: any) => {
+          console.log('Processing message:', msg);
+          // The server returns 'content' but we need to handle both possible field names
+          const messageContent = msg.content || msg.message || '';
+          return {
+            _id: msg._id,
+            content: messageContent,
+            timestamp: new Date(msg.timestamp || Date.now()),
+            senderType: msg.senderId === '3' ? 'admin' : (msg.isBot ? 'bot' : 'user'),
+            file: msg.file
+          };
+        });
+      })
+    );
   }
 
   // Send a message to a user
