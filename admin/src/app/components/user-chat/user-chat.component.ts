@@ -5,7 +5,6 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { UserService } from '../../services/user.service';
 import { User } from '../../models/user.model';
 import { ChatMessage } from '../../models/chat-message.model';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-user-chat',
@@ -23,13 +22,11 @@ export class UserChatComponent implements OnInit, AfterViewChecked {
   newMessage: string = '';
   isLoading = false;
   previewImage: {url: string, name: string} | null = null;
-  previewFile: {url: string, name: string, type: string, safeUrl?: SafeResourceUrl} | null = null;
 
   constructor(
     private userService: UserService,
     private route: ActivatedRoute,
-    private router: Router,
-    private sanitizer: DomSanitizer
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -69,73 +66,34 @@ export class UserChatComponent implements OnInit, AfterViewChecked {
 
   // Handle image preview in a larger modal
   openImagePreview(imageUrl: string, imageName: string): void {
-    console.log('Opening image preview:', imageUrl);
     this.previewImage = {
       url: imageUrl,
       name: imageName
     };
-    // Prevent background scrolling when modal is open
-    document.body.style.overflow = 'hidden';
   }
 
   // Close image preview
   closeImagePreview(): void {
     this.previewImage = null;
-    // Restore scrolling
-    document.body.style.overflow = 'auto';
   }
 
-  // Handle file preview
-  openFilePreview(fileUrl: string, fileName: string, fileType: string): void {
-    let safeUrl: SafeResourceUrl | undefined;
-
-    // Create a safe URL for PDF and text files
-    if (fileType.includes('pdf') || fileType.includes('text')) {
-      safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
-    }
-
-    this.previewFile = {
-      url: fileUrl,
-      name: fileName,
-      type: fileType,
-      safeUrl: safeUrl
-    };
-  }
-
-  // Close file preview
-  closeFilePreview(): void {
-    this.previewFile = null;
-  }
-
-  // Get file icon based on mime type
+  // Simple file icon helper to fix compile error
   getFileIcon(mimeType: string): string {
-    if (mimeType.includes('pdf')) {
-      return 'pdf';
-    } else if (mimeType.includes('word') || mimeType.includes('document')) {
-      return 'doc';
-    } else if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
-      return 'xls';
-    } else if (mimeType.includes('text')) {
-      return 'txt';
-    } else if (mimeType.includes('video')) {
-      return 'video';
-    } else if (mimeType.includes('audio')) {
-      return 'audio';
-    } else {
-      return 'file';
-    }
+    return 'file';
   }
 
-  // Get file display type for preview
-  getFileDisplayType(mimeType: string): 'pdf' | 'video' | 'audio' | 'text' | 'other' {
-    if (mimeType.includes('pdf')) {
-      return 'pdf';
-    } else if (mimeType.includes('video')) {
+  // Helper to determine file display type
+  getFileDisplayType(mimeType: string): string {
+    if (!mimeType) return 'other';
+
+    if (mimeType.startsWith('image/')) {
+      return 'image';
+    } else if (mimeType.startsWith('video/')) {
       return 'video';
-    } else if (mimeType.includes('audio')) {
+    } else if (mimeType.startsWith('audio/')) {
       return 'audio';
-    } else if (mimeType.includes('text')) {
-      return 'text';
+    } else if (mimeType === 'application/pdf') {
+      return 'pdf';
     } else {
       return 'other';
     }

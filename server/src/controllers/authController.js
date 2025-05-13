@@ -25,7 +25,7 @@ exports.getUser = async (req, res) => {
       user = await User.create({
         userId,
         username,
-        messages: []
+        messages: [] // Initial empty messages array
       });
     }
 
@@ -38,7 +38,7 @@ exports.getUser = async (req, res) => {
 
 exports.handleChat = async (req, res) => {
   try {
-    const { userId, message } = req.body;
+    const { userId, message, adminId } = req.body;
     const file = req.file;
 
     if (!userId || (!message && !file)) {
@@ -50,10 +50,32 @@ exports.handleChat = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Check if this is an admin message
+    if (adminId) {
+      // Add admin message
+      const adminMessageObj = {
+        content: message,
+        timestamp: new Date(),
+        senderType: 'admin',
+        senderId: adminId
+      };
+      
+      user.messages.push(adminMessageObj);
+      await user.save();
+      
+      return res.json({
+        userMessage: null,
+        adminMessage: message,
+        user: user
+      });
+    }
+
+    // Regular user message - existing code
     // Prepare message object
     const messageObj = {
       content: message || '',
-      timestamp: new Date()
+      timestamp: new Date(),
+      senderType: 'user'
     };
 
     // Add file information if a file was uploaded
@@ -82,7 +104,8 @@ exports.handleChat = async (req, res) => {
     // Add bot response
     user.messages.push({
       content: botResponse.text,
-      timestamp: new Date()
+      timestamp: new Date(),
+      senderType: 'bot'
     });
 
     await user.save();

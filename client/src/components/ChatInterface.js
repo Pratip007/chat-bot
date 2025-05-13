@@ -46,17 +46,13 @@ function ChatInterface() {
       console.log('Fetched chat history:', historyData);
       
       // Convert the history data to our message format
-      const formattedMessages = historyData.map((msg, index) => {
-        // Try to determine if it's a user message or bot message
-        // Check if there's an explicit property to determine this
-        // Otherwise, use even/odd pattern (alternating messages)
-        const isBot = index % 2 !== 0;
-        
+      const formattedMessages = historyData.map((msg) => {
         return {
           text: msg.content,
-          isBot: isBot,
+          isBot: msg.senderType === 'bot',
           timestamp: new Date(msg.timestamp),
-          username: isBot ? 'Bot' : username,
+          username: msg.senderType === 'bot' ? 'Bot' : username,
+          senderType: msg.senderType || 'user',
           file: msg.file ? {
             name: msg.file.originalname,
             type: msg.file.mimetype,
@@ -91,9 +87,10 @@ function ChatInterface() {
       console.log('Socket message received:', message);
       setMessages(prev => [...prev, {
         text: message.text,
-        isBot: true,
+        isBot: message.senderType === 'bot',
         timestamp: new Date(message.timestamp),
-        username: message.username
+        username: message.username,
+        senderType: message.senderType
       }]);
     });
 
@@ -162,6 +159,7 @@ function ChatInterface() {
           isBot: false,
           timestamp: new Date(),
           username: currentUsername,
+          senderType: 'user',
           file: selectedFile ? {
             name: selectedFile.name,
             type: selectedFile.type,
@@ -172,7 +170,8 @@ function ChatInterface() {
           text: data.botResponse,
           isBot: true,
           timestamp: new Date(),
-          username: 'Bot'
+          username: 'Bot',
+          senderType: 'bot'
         }
       ]);
 

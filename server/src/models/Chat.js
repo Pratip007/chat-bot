@@ -20,6 +20,11 @@ const chatSchema = new mongoose.Schema({
   userId: {
     type: String,
     required: true
+  },
+  senderType: {
+    type: String,
+    enum: ['user', 'bot', 'admin'],
+    default: 'user'
   }
 });
 

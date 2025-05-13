@@ -6,6 +6,12 @@ const messageSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
+    senderType: {
+        type: String,
+        enum: ['user', 'bot', 'admin'],
+        required: true,
+        default: 'user'
+    },
     file: {
         filename: String,
         originalname: String,

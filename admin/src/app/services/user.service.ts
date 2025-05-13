@@ -68,7 +68,7 @@ export class UserService {
             _id: msg._id,
             content: messageContent,
             timestamp: new Date(msg.timestamp || Date.now()),
-            senderType: msg.senderId === '3' ? 'admin' : (msg.isBot ? 'bot' : 'user'),
+            senderType: msg.senderType || (msg.senderId === '3' ? 'admin' : (msg.isBot ? 'bot' : 'user')),
             file: msg.file
           };
         });

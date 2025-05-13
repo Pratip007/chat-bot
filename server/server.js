@@ -70,14 +70,17 @@ io.on('connection', (socket) => {
   socket.on('sendMessage', async (message) => {
     try {
       console.log('Received message:', message);
+      // Add senderType to the message for proper processing
+      message.senderType = 'user';
       // Call your bot logic
       const botResponse = await processMessage({
         text: message.text,
         sessionId: message.sessionId,
-        userId: message.userId
+        userId: message.userId, 
+        senderType: 'user'
       });
-      // Add sender: 'bot' for the client UI
-      botResponse.sender = 'bot';
+      // Add senderType: 'bot' for the client UI (replacing 'sender' field)
+      botResponse.senderType = 'bot';
       // Emit the bot's response to the client
       io.to(message.sessionId).emit('message', botResponse);
       console.log('Sent bot response:', botResponse);

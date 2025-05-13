@@ -1,4 +1,5 @@
 const Chat = require('../models/Chat');
+const mongoose = require('mongoose');
 
 // Simple response mapping for common queries
 const responseMap = {
@@ -9,13 +10,35 @@ const responseMap = {
   'thanks': 'You\'re welcome! Is there anything else I can help you with?'
 };
 
+const messageSchema = new mongoose.Schema({
+  content: String,
+  timestamp: {
+    type: Date,
+    default: Date.now
+  },
+  senderType: {
+    type: String,
+    enum: ['user', 'bot', 'admin'],
+    required: true
+  },
+  senderId: String, // Store actual user/admin ID
+  file: {
+    filename: String,
+    originalname: String,
+    mimetype: String,
+    size: Number,
+    data: String // Base64 encoded file data
+  }
+});
+
 exports.processMessage = async (message) => {
   try {
     // If a file is received, reply with a special message
     if (message.hasFile) {
       return {
         text: 'Hello! I received your file successfully. Thank you for sharing it',
-        timestamp: new Date()
+        timestamp: new Date(),
+        senderType: 'bot'
       };
     }
     const lowerMessage = message.text.toLowerCase();
@@ -33,19 +56,22 @@ exports.processMessage = async (message) => {
     const chat = new Chat({
       message: message.text,
       response: response,
-      userId: message.userId
+      userId: message.userId,
+      senderType: message.senderType || 'user'
     });
     await chat.save();
 
     return {
       text: response,
-      timestamp: new Date()
+      timestamp: new Date(),
+      senderType: 'bot'
     };
   } catch (error) {
     console.error('Error processing message:', error);
     return {
       text: 'Sorry, I encountered an error. Please try again.',
-      timestamp: new Date()
+      timestamp: new Date(),
+      senderType: 'bot'
     };
   }
 };
