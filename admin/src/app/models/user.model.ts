@@ -7,6 +7,8 @@ export interface User {
   avatar?: string;
   createdAt: Date;
   lastActive?: Date;
+  updatedAt?: Date;
+  lastMessage?: ChatMessage;
   role: 'user' | 'admin';
   status: 'active' | 'inactive' | 'banned';
   messages?: ChatMessage[];

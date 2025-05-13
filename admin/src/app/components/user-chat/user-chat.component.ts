@@ -67,17 +67,17 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       (messageData) => {
         console.log('Received message via WebSocket:', messageData);
 
+        // Convert to ChatMessage format
+        const newMessage: ChatMessage = {
+          _id: messageData._id,
+          content: messageData.content,
+          timestamp: new Date(messageData.timestamp),
+          senderType: messageData.senderType,
+          file: messageData.file
+        };
+
         // Check if this message is for our currently selected user
         if (this.selectedUser && (messageData.userId === this.selectedUser.id || !messageData.userId)) {
-          // Convert to ChatMessage format
-          const newMessage: ChatMessage = {
-            _id: messageData._id,
-            content: messageData.content,
-            timestamp: new Date(messageData.timestamp),
-            senderType: messageData.senderType,
-            file: messageData.file
-          };
-
           // Check if the message already exists (avoid duplicates)
           const exists = this.messages.some(msg => msg._id === newMessage._id);
           if (!exists) {
@@ -88,8 +88,22 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
             // Scroll to bottom after receiving a new message
             setTimeout(() => this.scrollToBottom(), 100);
+
+            // Update the selected user's last message
+            this.selectedUser.lastMessage = newMessage;
           }
         }
+
+        // Find the user this message belongs to and update their lastMessage
+        if (messageData.userId) {
+          const userToUpdate = this.users.find(u => u.id === messageData.userId);
+          if (userToUpdate) {
+            userToUpdate.lastMessage = newMessage;
+          }
+        }
+
+        // Reload users list to update the order based on most recent message
+        this.refreshUsersList();
       }
     );
 
@@ -268,18 +282,22 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     });
   }
 
-  loadUsers(): void {
+  loadUsers(): Promise<void> {
     this.isLoading = true;
-    this.userService.getUsers().subscribe({
-      next: (users) => {
-        this.users = users;
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Error loading users:', err);
-        this.isLoading = false;
-        this.users = [];
-      }
+    return new Promise<void>((resolve) => {
+      this.userService.getUsers().subscribe({
+        next: (users) => {
+          this.users = users;
+          this.isLoading = false;
+          resolve();
+        },
+        error: (err) => {
+          console.error('Error loading users:', err);
+          this.isLoading = false;
+          this.users = [];
+          resolve();
+        }
+      });
     });
   }
 
@@ -467,7 +485,8 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     );
 
     if (!messageExists) {
-      const adminMessage: ChatMessage = {
+      // Create a new message
+      const newAdminMessage: ChatMessage = {
         content: sentMessage,
         timestamp: new Date(),
         senderType: 'admin',
@@ -479,14 +498,24 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           data: response.fileData
         } : undefined
       };
-      this.messages.push(adminMessage);
-      console.log('Added admin message:', adminMessage);
+
+      // Add it to the messages
+      this.messages.push(newAdminMessage);
+
+      // Sort messages by timestamp
+      this.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      // Scroll to bottom with a tiny delay to ensure message is rendered
+      setTimeout(() => this.scrollToBottom(), 100);
+
+      // Update the selected user's last message
+      if (this.selectedUser) {
+        this.selectedUser.lastMessage = newAdminMessage;
+      }
     }
 
-    // No longer need to add bot response - as bot should not reply to admin messages
-
-    // Scroll to bottom after sending a message
-    setTimeout(() => this.scrollToBottom(), 100);
+    // Refresh users list to update the order
+    this.refreshUsersList();
   }
 
   // Handle error with a more user-friendly approach
@@ -531,5 +560,92 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
     // Scroll to bottom even if there was an error
     setTimeout(() => this.scrollToBottom(), 100);
+  }
+
+  // Refresh users list to update order
+  refreshUsersList(): void {
+    // Keep track of currently selected user
+    const currentSelectedUserId = this.selectedUser?.id;
+
+    this.loadUsers().then(() => {
+      // Restore selected user if it was set
+      if (currentSelectedUserId) {
+        this.selectedUser = this.users.find(u => u.id === currentSelectedUserId);
+      }
+    });
+  }
+
+  // Helper to determine if a message is from today
+  isMessageFromToday(timestamp: Date): boolean {
+    if (!timestamp) return false;
+
+    const today = new Date();
+    const messageDate = new Date(timestamp);
+
+    return today.getDate() === messageDate.getDate() &&
+           today.getMonth() === messageDate.getMonth() &&
+           today.getFullYear() === messageDate.getFullYear();
+  }
+
+  // Group messages by date for rendering date separators
+  getMessageGroups(): { date: string, messages: ChatMessage[] }[] {
+    if (!this.messages || this.messages.length === 0) {
+      return [];
+    }
+
+    const groups: { date: string, messages: ChatMessage[] }[] = [];
+    let currentDate = '';
+    let currentGroup: ChatMessage[] = [];
+
+    // Sort messages by timestamp first
+    const sortedMessages = [...this.messages].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    sortedMessages.forEach(message => {
+      const messageDate = new Date(message.timestamp);
+      const dateStr = messageDate.toDateString();
+
+      if (dateStr !== currentDate) {
+        // Start a new group when date changes
+        if (currentGroup.length > 0) {
+          groups.push({
+            date: currentDate,
+            messages: [...currentGroup]
+          });
+        }
+        currentDate = dateStr;
+        currentGroup = [message];
+      } else {
+        // Add to current group
+        currentGroup.push(message);
+      }
+    });
+
+    // Add the last group
+    if (currentGroup.length > 0) {
+      groups.push({
+        date: currentDate,
+        messages: [...currentGroup]
+      });
+    }
+
+    return groups;
+  }
+
+  // Format date for display in chat
+  formatMessageDate(dateString: string): string {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    }
   }
 }
