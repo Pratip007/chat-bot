@@ -35,9 +35,31 @@ export class DashboardComponent implements OnInit {
 
   loadUsers(): void {
     this.isLoading = true;
-    this.userService.getUsers().subscribe({
+    this.userService.getUsersWithMessages().subscribe({
       next: (users) => {
-        this.users = users;
+        // For each user, find the most recent message timestamp
+        const usersWithLastMessageTime = users.map(user => {
+          const messages = user.messages || [];
+          let lastMessageTime = user.createdAt;
+
+          if (messages.length > 0) {
+            // Find the most recent message timestamp
+            const timestamps = messages.map(msg => new Date(msg.timestamp));
+            const mostRecentTime = new Date(Math.max(...timestamps.map(t => t.getTime())));
+            lastMessageTime = mostRecentTime;
+          }
+
+          return {
+            ...user,
+            lastMessageTime
+          };
+        });
+
+        // Sort users by most recent message timestamp in descending order
+        this.users = usersWithLastMessageTime.sort((a, b) =>
+          b.lastMessageTime.getTime() - a.lastMessageTime.getTime()
+        );
+
         this.totalUsers = users.length;
         this.activeUsers = users.length; // All users are considered active for now
         this.inactiveUsers = 0; // No inactive users for now
@@ -47,7 +69,7 @@ export class DashboardComponent implements OnInit {
 
         // Get latest messages from users for unread messages section
         this.unreadMessages = [];
-        users.forEach(user => {
+        this.users.forEach(user => {
           if (user.messages && user.messages.length > 0) {
             const latestMessage = user.messages[user.messages.length - 1];
             this.unreadMessages.push({
