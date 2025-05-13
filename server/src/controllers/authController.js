@@ -1,6 +1,14 @@
 const User = require('../models/User');
 const processMessage = require('./chatController').processMessage;
 
+// Store socket instance for use in controllers
+let io;
+
+// Set socket.io instance
+exports.setSocketIO = (socketIO) => {
+  io = socketIO;
+};
+
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find({}, { userId: 1, username: 1, createdAt: 1, updatedAt: 1 });
@@ -41,6 +49,12 @@ exports.handleChat = async (req, res) => {
     const { userId, message, adminId } = req.body;
     const file = req.file;
 
+    console.log('handleChat request:', { userId, message, adminId, hasFile: !!file });
+    
+    if (file) {
+      console.log('File received:', file.originalname, 'Size:', file.size, 'Type:', file.mimetype);
+    }
+
     if (!userId || (!message && !file)) {
       return res.status(400).json({ error: 'userId and either message or file are required' });
     }
@@ -52,25 +66,64 @@ exports.handleChat = async (req, res) => {
 
     // Check if this is an admin message
     if (adminId) {
+      console.log('Processing admin message - skipping bot response');
+      
       // Add admin message
       const adminMessageObj = {
-        content: message,
+        content: message || '',
         timestamp: new Date(),
         senderType: 'admin',
         senderId: adminId
       };
       
+      // Add file information if a file was uploaded
+      if (file) {
+        // Convert buffer to base64
+        const base64Data = file.buffer.toString('base64');
+        adminMessageObj.file = {
+          filename: file.originalname,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          data: `data:${file.mimetype};base64,${base64Data}`
+        };
+      }
+      
       user.messages.push(adminMessageObj);
       await user.save();
       
+      // Get the saved message to access its ID
+      const savedMessage = user.messages[user.messages.length - 1];
+      
+      // Emit socket event to the specific user
+      if (io) {
+        // Prepare the message for the client
+        const socketMessage = {
+          _id: savedMessage._id,
+          content: savedMessage.content,
+          timestamp: savedMessage.timestamp,
+          senderType: 'admin',
+          senderId: adminId,
+          file: savedMessage.file
+        };
+        
+        // Emit to user's room
+        io.to(userId).emit('message', socketMessage);
+        console.log(`Emitted admin message to user ${userId}`);
+      }
+      
       return res.json({
         userMessage: null,
-        adminMessage: message,
+        adminMessage: message || 'File sent',
+        fileData: file ? adminMessageObj.file.data : null,
+        messageId: savedMessage._id,
         user: user
       });
     }
 
-    // Regular user message - existing code
+    // For user messages, continue with the existing logic (get bot response)
+    console.log('Processing user message - generating bot response');
+    
     // Prepare message object
     const messageObj = {
       content: message || '',
@@ -101,14 +154,44 @@ exports.handleChat = async (req, res) => {
       hasFile: !!file
     });
 
-    // Add bot response
-    user.messages.push({
+    // Create bot message object
+    const botMessageObj = {
       content: botResponse.text,
       timestamp: new Date(),
       senderType: 'bot'
-    });
+    };
+    
+    // Add bot response
+    user.messages.push(botMessageObj);
 
     await user.save();
+    
+    // Emit socket events for real-time updates
+    if (io) {
+      // First, emit the user message to admin clients
+      const userSocketMessage = {
+        _id: messageObj._id,
+        content: messageObj.content,
+        timestamp: messageObj.timestamp,
+        senderType: 'user',
+        file: messageObj.file
+      };
+      
+      // Emit to admin room
+      io.to('admin').emit('message', { ...userSocketMessage, userId });
+      
+      // Then, emit the bot response to the user
+      const botSocketMessage = {
+        _id: botMessageObj._id,
+        content: botMessageObj.content,
+        timestamp: botMessageObj.timestamp,
+        senderType: 'bot'
+      };
+      
+      // Emit to user's room
+      io.to(userId).emit('message', botSocketMessage);
+      console.log(`Emitted bot response to user ${userId}`);
+    }
 
     res.json({
       userMessage: message || 'File uploaded',
@@ -179,5 +262,111 @@ exports.getUserById = async (req, res) => {
   } catch (error) {
     console.error('Error in getUserById:', error);
     res.status(500).json({ error: 'Error fetching user details' });
+  }
+};
+
+// Update a message
+exports.updateMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { content, adminId } = req.body;
+
+    if (!messageId || !content) {
+      return res.status(400).json({ error: 'messageId and content are required' });
+    }
+
+    // Find user with this message
+    const user = await User.findOne({ 'messages._id': messageId });
+    if (!user) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    // Find and update the specific message in the array
+    const messageIndex = user.messages.findIndex(msg => msg._id.toString() === messageId);
+    if (messageIndex === -1) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    // Update the message content
+    user.messages[messageIndex].content = content;
+    user.messages[messageIndex].updatedAt = new Date();
+
+    await user.save();
+    
+    // Emit socket event for real-time updates
+    if (io) {
+      const updatedMessage = {
+        _id: messageId,
+        content: content,
+        updatedAt: user.messages[messageIndex].updatedAt,
+        action: 'updated'
+      };
+      
+      // Emit to user's room
+      io.to(user.userId).emit('messageUpdated', updatedMessage);
+      
+      // Also notify admins
+      io.to('admin').emit('messageUpdated', { ...updatedMessage, userId: user.userId });
+    }
+    
+    res.json({
+      message: 'Message updated successfully',
+      updatedMessage: user.messages[messageIndex]
+    });
+  } catch (error) {
+    console.error('Error in updateMessage:', error);
+    res.status(500).json({ error: 'Error updating message' });
+  }
+};
+
+// Delete a message (soft delete)
+exports.deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+
+    if (!messageId) {
+      return res.status(400).json({ error: 'messageId is required' });
+    }
+
+    // Find user with this message
+    const user = await User.findOne({ 'messages._id': messageId });
+    if (!user) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    // Find the specific message in the array
+    const messageIndex = user.messages.findIndex(msg => msg._id.toString() === messageId);
+    if (messageIndex === -1) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    // Mark the message as deleted (soft delete)
+    user.messages[messageIndex].isDeleted = true;
+    user.messages[messageIndex].deletedAt = new Date();
+
+    await user.save();
+    
+    // Emit socket event for real-time updates
+    if (io) {
+      const deletedMessage = {
+        _id: messageId,
+        deletedAt: user.messages[messageIndex].deletedAt,
+        action: 'deleted'
+      };
+      
+      // Emit to user's room
+      io.to(user.userId).emit('messageDeleted', deletedMessage);
+      
+      // Also notify admins
+      io.to('admin').emit('messageDeleted', { ...deletedMessage, userId: user.userId });
+    }
+    
+    res.json({
+      message: 'Message deleted successfully',
+      deletedMessage: user.messages[messageIndex]
+    });
+  } catch (error) {
+    console.error('Error in deleteMessage:', error);
+    res.status(500).json({ error: 'Error deleting message' });
   }
 }; 

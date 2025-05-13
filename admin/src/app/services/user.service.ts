@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, throwError } from 'rxjs';
 import { User } from '../models/user.model';
 import { ChatMessage } from '../models/chat-message.model';
 
@@ -83,6 +83,34 @@ export class UserService {
       message: content,
       adminId: '3' // This should be the actual admin ID from auth
     });
+  }
+
+  // Send a message with file attachment
+  sendMessageWithFile(userId: string, formData: FormData): Observable<any> {
+    return this.http.post(`${this.apiUrl}/chat`, formData);
+  }
+
+  // Update a message
+  updateMessage(message: ChatMessage): Observable<any> {
+    if (!message._id) {
+      console.error('Cannot update message without ID');
+      return throwError(() => new Error('Message ID is required for update'));
+    }
+
+    return this.http.put(`${this.apiUrl}/chat/message/${message._id}`, {
+      content: message.content,
+      adminId: '3' // This should be the actual admin ID from auth
+    });
+  }
+
+  // Delete a message
+  deleteMessage(messageId?: string): Observable<any> {
+    if (!messageId) {
+      console.error('Cannot delete message without ID');
+      return throwError(() => new Error('Message ID is required for deletion'));
+    }
+
+    return this.http.delete(`${this.apiUrl}/chat/message/${messageId}`);
   }
 
   // Update user status

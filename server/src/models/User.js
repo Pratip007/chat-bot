@@ -18,7 +18,13 @@ const messageSchema = new mongoose.Schema({
         mimetype: String,
         size: Number,
         data: String // Base64 encoded file data
-    }
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
+    deletedAt: Date,
+    updatedAt: Date
 });
 
 const userSchema = new mongoose.Schema({

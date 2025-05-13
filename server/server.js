@@ -38,6 +38,9 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling']
 });
 
+// Pass the io instance to the auth controller
+authController.setSocketIO(io);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -53,6 +56,10 @@ app.post('/api/chat', upload.single('file'), authController.handleChat);
 app.post('/api/chat/history', authController.getChatHistory);
 app.get('/api/chat/history/:userId', authController.getChatHistoryByParam);
 
+// Message update/delete endpoints
+app.put('/api/chat/message/:messageId', authController.updateMessage);
+app.delete('/api/chat/message/:messageId', authController.deleteMessage);
+
 // Basic route
 app.get('/', (req, res) => {
     res.send('Chatbot API is running');
@@ -60,18 +67,80 @@ app.get('/', (req, res) => {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('New client connected');
+  console.log('New client connected', socket.id);
 
-  socket.on('join', (sessionId) => {
-    socket.join(sessionId);
-    console.log(`Client joined room: ${sessionId}`);
+  // Handle client joining specific user or admin rooms
+  socket.on('join', (data) => {
+    // Clean up - leave all rooms except own socket ID room
+    const socketRooms = Array.from(socket.rooms);
+    socketRooms.forEach(room => {
+      if (room !== socket.id) {
+        socket.leave(room);
+      }
+    });
+
+    // Join new room(s)
+    if (data.userId) {
+      socket.join(data.userId);
+      console.log(`Client ${socket.id} joined user room: ${data.userId}`);
+    }
+    
+    if (data.isAdmin) {
+      socket.join('admin');
+      console.log(`Client ${socket.id} joined admin room`);
+    }
+    
+    // Notify connected
+    socket.emit('joined', {
+      status: 'success',
+      room: data.userId || 'admin'
+    });
   });
 
+  // Handle user sending message
   socket.on('sendMessage', async (message) => {
     try {
-      console.log('Received message:', message);
+      console.log('Received message via socket:', message);
+      
+      // Check if this is an admin message
+      if (message.isAdmin || message.adminId) {
+        console.log('Processing admin message via socket');
+        
+        // Find the user to message
+        const user = await mongoose.model('User').findOne({ userId: message.userId });
+        
+        if (user) {
+          // Save admin message
+          const adminMessageObj = {
+            content: message.text,
+            timestamp: new Date(),
+            senderType: 'admin',
+            senderId: message.adminId || 'admin-socket'
+          };
+          
+          user.messages.push(adminMessageObj);
+          await user.save();
+          
+          // Get the saved message with its ID
+          const savedMessage = user.messages[user.messages.length - 1];
+          
+          // Emit to user's room
+          io.to(message.userId).emit('message', {
+            _id: savedMessage._id,
+            content: savedMessage.content,
+            timestamp: savedMessage.timestamp,
+            senderType: 'admin'
+          });
+          
+          console.log(`Emitted admin message to user ${message.userId}`);
+        }
+        
+        return; // Skip bot processing for admin messages
+      }
+      
       // Add senderType to the message for proper processing
       message.senderType = 'user';
+      
       // Call your bot logic
       const botResponse = await processMessage({
         text: message.text,
@@ -79,18 +148,70 @@ io.on('connection', (socket) => {
         userId: message.userId, 
         senderType: 'user'
       });
-      // Add senderType: 'bot' for the client UI (replacing 'sender' field)
+      
+      // Add senderType: 'bot' for the client UI
       botResponse.senderType = 'bot';
-      // Emit the bot's response to the client
-      io.to(message.sessionId).emit('message', botResponse);
-      console.log('Sent bot response:', botResponse);
+      
+      // Save the message to database
+      const user = await mongoose.model('User').findOne({ userId: message.userId });
+      
+      if (user) {
+        // Save user message
+        const userMessageObj = {
+          content: message.text,
+          timestamp: new Date(),
+          senderType: 'user'
+        };
+        user.messages.push(userMessageObj);
+        
+        // Save bot message
+        const botMessageObj = {
+          content: botResponse.text,
+          timestamp: new Date(),
+          senderType: 'bot'
+        };
+        user.messages.push(botMessageObj);
+        
+        await user.save();
+        
+        // Emit the saved messages with their IDs
+        const savedUserMessage = user.messages[user.messages.length - 2];
+        const savedBotMessage = user.messages[user.messages.length - 1];
+        
+        // Emit to users room
+        io.to(message.userId).emit('message', {
+          _id: savedUserMessage._id,
+          content: savedUserMessage.content,
+          timestamp: savedUserMessage.timestamp,
+          senderType: 'user'
+        });
+        
+        io.to(message.userId).emit('message', {
+          _id: savedBotMessage._id,
+          content: savedBotMessage.content,
+          timestamp: savedBotMessage.timestamp,
+          senderType: 'bot'
+        });
+        
+        // Also emit to admin room
+        io.to('admin').emit('message', {
+          _id: savedUserMessage._id,
+          content: savedUserMessage.content,
+          timestamp: savedUserMessage.timestamp,
+          senderType: 'user',
+          userId: message.userId
+        });
+      }
     } catch (error) {
-      console.error('Error processing message:', error);
+      console.error('Error processing socket message:', error);
+      socket.emit('error', {
+        message: 'Error processing your message'
+      });
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected');
+    console.log('Client disconnected', socket.id);
   });
 });
 
