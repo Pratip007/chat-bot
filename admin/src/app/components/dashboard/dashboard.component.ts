@@ -6,6 +6,11 @@ import { MessageService } from '../../services/message.service';
 import { User } from '../../models/user.model';
 import { Message } from '../../models/message.model';
 import { HttpClientModule } from '@angular/common/http';
+import { ChatMessage } from '../../models/chat-message.model';
+
+interface UserWithLastMessageTime extends User {
+  lastMessageTime: Date;
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -15,8 +20,13 @@ import { HttpClientModule } from '@angular/common/http';
   styleUrls: ['./dashboard.component.css']
 })
 export class DashboardComponent implements OnInit {
-  users: User[] = [];
-  unreadMessages: any[] = [];
+  users: UserWithLastMessageTime[] = [];
+  unreadMessages: {
+    userId: string;
+    content: string;
+    createdAt: Date;
+    status: string;
+  }[] = [];
   totalUsers = 0;
   activeUsers = 0;
   inactiveUsers = 0;
@@ -36,16 +46,16 @@ export class DashboardComponent implements OnInit {
   loadUsers(): void {
     this.isLoading = true;
     this.userService.getUsersWithMessages().subscribe({
-      next: (users) => {
+      next: (users: User[]) => {
         // For each user, find the most recent message timestamp
-        const usersWithLastMessageTime = users.map(user => {
+        const usersWithLastMessageTime: UserWithLastMessageTime[] = users.map((user: User) => {
           const messages = user.messages || [];
           let lastMessageTime = user.createdAt;
 
           if (messages.length > 0) {
             // Find the most recent message timestamp
-            const timestamps = messages.map(msg => new Date(msg.timestamp));
-            const mostRecentTime = new Date(Math.max(...timestamps.map(t => t.getTime())));
+            const timestamps = messages.map((msg: ChatMessage) => new Date(msg.timestamp));
+            const mostRecentTime = new Date(Math.max(...timestamps.map((t: Date) => t.getTime())));
             lastMessageTime = mostRecentTime;
           }
 
@@ -56,14 +66,14 @@ export class DashboardComponent implements OnInit {
         });
 
         // Sort users by most recent message timestamp in descending order
-        this.users = usersWithLastMessageTime.sort((a, b) =>
+        this.users = usersWithLastMessageTime.sort((a: UserWithLastMessageTime, b: UserWithLastMessageTime) =>
           b.lastMessageTime.getTime() - a.lastMessageTime.getTime()
         );
 
         this.totalUsers = users.length;
         this.activeUsers = users.length; // All users are considered active for now
         this.inactiveUsers = 0; // No inactive users for now
-        this.totalMessages = users.reduce((total, user) => {
+        this.totalMessages = users.reduce((total: number, user: User) => {
           return total + (user.messages?.length || 0);
         }, 0);
 
@@ -83,7 +93,7 @@ export class DashboardComponent implements OnInit {
 
         this.isLoading = false;
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Error loading users:', err);
         this.isLoading = false;
       }

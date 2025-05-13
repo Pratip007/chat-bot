@@ -66,6 +66,47 @@ export class UserService {
     );
   }
 
+  // Get users with their full message history for dashboard
+  getUsersWithMessages(): Observable<User[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/users`).pipe(
+      switchMap(users => {
+        // Map the basic user data
+        const mappedUsers: User[] = users.map(user => ({
+          id: user.userId,
+          name: user.username,
+          email: user.username + '@example.com', // Fallback if email not provided by API
+          createdAt: new Date(user.createdAt || Date.now()),
+          lastActive: user.lastActive ? new Date(user.lastActive) : undefined,
+          updatedAt: user.updatedAt ? new Date(user.updatedAt) : undefined,
+          role: 'user' as const,
+          status: 'active' as const,
+          avatar: `https://ui-avatars.com/api/?name=${user.username}&background=3B82F6&color=fff`,
+          messages: [] // Initialize with empty messages array
+        }));
+
+        // Create an array of observables that fetch messages for each user
+        const userObservables = mappedUsers.map(user => {
+          // Get all messages for each user
+          return this.getChatHistory(user.id).pipe(
+            map(messages => {
+              if (messages.length > 0) {
+                // Update user with messages
+                return {
+                  ...user,
+                  messages
+                } as User;
+              }
+              return user;
+            })
+          );
+        });
+
+        // Combine all user observables
+        return forkJoin(userObservables);
+      })
+    );
+  }
+
   // Get the last message for a user
   private getLastMessageForUser(userId: string): Observable<ChatMessage | null> {
     return this.http.get<any[]>(`${this.apiUrl}/chat/history/${userId}?limit=1`).pipe(
