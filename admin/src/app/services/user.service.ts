@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, throwError } from 'rxjs';
+import { Observable, map, throwError, mergeMap, from, of, catchError, forkJoin } from 'rxjs';
 import { User } from '../models/user.model';
 import { ChatMessage } from '../models/chat-message.model';
 
@@ -14,23 +14,12 @@ export class UserService {
 
   // Get all users
   getUsers(): Observable<User[]> {
-    return this.getAllUsersFromServer();
+    return this.getUsersWithMessages();
   }
 
-  // Get all users from the server
+  // Get all users from the server with their messages
   getAllUsersFromServer(): Observable<User[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/users`).pipe(
-      map(users => users.map(user => ({
-        id: user.userId,
-        name: user.username,
-        email: user.username + '@example.com', // Fallback if email not provided by API
-        createdAt: new Date(user.createdAt || Date.now()),
-        lastActive: user.lastActive ? new Date(user.lastActive) : undefined,
-        role: 'user',
-        status: 'active',
-        avatar: `https://ui-avatars.com/api/?name=${user.username}&background=3B82F6&color=fff`
-      })))
-    );
+    return this.getUsersWithMessages();
   }
 
   // Get user by ID
@@ -126,6 +115,59 @@ export class UserService {
         status: status,
         avatar: `https://ui-avatars.com/api/?name=${user.username}&background=3B82F6&color=fff`
       }))
+    );
+  }
+
+  // Get all users with their messages
+  getUsersWithMessages(): Observable<User[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/users`).pipe(
+      // First map to basic user objects
+      map(users => users.map(user => ({
+        id: user.userId,
+        name: user.username,
+        email: user.username + '@example.com',
+        createdAt: new Date(user.createdAt || Date.now()),
+        lastActive: user.lastActive ? new Date(user.lastActive) : undefined,
+        role: 'user' as 'user' | 'admin',
+        status: 'active' as 'active' | 'inactive' | 'banned',
+        avatar: `https://ui-avatars.com/api/?name=${user.username}&background=3B82F6&color=fff`,
+        messages: []
+      }))),
+
+      // Here we'll modify to get chat histories for all users in parallel
+      mergeMap(users => {
+        // If there are no users, return empty array
+        if (users.length === 0) return of(users);
+
+        // For each user, create an observable to fetch their messages
+        const userObservables = users.map(user =>
+          this.http.get<any[]>(`${this.apiUrl}/chat/history/${user.id}`).pipe(
+            map(messages => {
+              // Map the raw message data to ChatMessage objects
+              const formattedMessages = messages ? messages.map(msg => ({
+                _id: msg._id,
+                content: msg.content || '',
+                timestamp: new Date(msg.timestamp || Date.now()),
+                senderType: msg.senderType || 'user',
+                file: msg.file
+              })) : [];
+
+              return {
+                ...user,
+                messages: formattedMessages
+              };
+            }),
+            // If fetching messages fails, just return user without messages
+            catchError(error => {
+              console.error(`Error fetching messages for user ${user.id}:`, error);
+              return of(user);
+            })
+          )
+        );
+
+        // Combine all user observables
+        return forkJoin(userObservables);
+      })
     );
   }
 }

@@ -502,7 +502,7 @@ function ChatInterface() {
           display: flex;
           flex-direction: column;
           height: 100vh;
-          max-width: 1200px;
+          max-width: 900px;
           margin: 0 auto;
           border: none;
           border-radius: 24px;

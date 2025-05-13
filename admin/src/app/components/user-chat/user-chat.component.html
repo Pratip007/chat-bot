@@ -19,8 +19,8 @@
       <div
         *ngFor="let user of users"
         (click)="selectUser(user.id)"
-        class="flex items-center p-3 border-b cursor-pointer hover:bg-gray-50"
-        [class.bg-gray-100]="selectedUser?.id === user.id"
+        class="flex items-center p-3 border-b cursor-pointer hover:bg-gray-100"
+        [class.bg-gray-200]="selectedUser?.id === user.id"
       >
         <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
           <img *ngIf="user.avatar" [src]="user.avatar" alt="User avatar" class="w-full h-full object-cover">
@@ -31,6 +31,9 @@
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-900 truncate">{{user.name}}</p>
           <p class="text-xs text-gray-500 truncate">{{user.email}}</p>
+          <p *ngIf="user.lastMessageTime" class="text-xs text-gray-400 mt-1">
+            Last message: {{user.lastMessageTime | date:'short'}}
+          </p>
         </div>
         <div *ngIf="user.status === 'active'" class="h-2 w-2 bg-green-500 rounded-full"></div>
         <div *ngIf="user.status === 'inactive'" class="h-2 w-2 bg-gray-400 rounded-full"></div>

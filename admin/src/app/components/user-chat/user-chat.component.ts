@@ -90,6 +90,22 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
             setTimeout(() => this.scrollToBottom(), 100);
           }
         }
+
+        // Update the user's last message time
+        if (messageData.userId) {
+          const userIndex = this.users.findIndex(u => u.id === messageData.userId);
+          if (userIndex !== -1) {
+            // Update the last message time
+            this.users[userIndex].lastMessageTime = new Date(messageData.timestamp);
+
+            // Re-sort the users list
+            this.users = [...this.users].sort((a, b) => {
+              if (!a.lastMessageTime) return 1;
+              if (!b.lastMessageTime) return -1;
+              return b.lastMessageTime.getTime() - a.lastMessageTime.getTime();
+            });
+          }
+        }
       }
     );
 
@@ -270,9 +286,31 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   loadUsers(): void {
     this.isLoading = true;
-    this.userService.getUsers().subscribe({
+    this.userService.getUsersWithMessages().subscribe({
       next: (users) => {
-        this.users = users;
+        // For each user, find the most recent message timestamp
+        const usersWithLastMessageTime = users.map(user => {
+          const messages = user.messages || [];
+          let lastMessageTime = user.createdAt;
+
+          if (messages.length > 0) {
+            // Find the most recent message timestamp
+            const timestamps = messages.map(msg => new Date(msg.timestamp));
+            const mostRecentTime = new Date(Math.max(...timestamps.map(t => t.getTime())));
+            lastMessageTime = mostRecentTime;
+          }
+
+          return {
+            ...user,
+            lastMessageTime
+          };
+        });
+
+        // Sort users by most recent message timestamp in descending order
+        this.users = usersWithLastMessageTime.sort((a, b) =>
+          b.lastMessageTime.getTime() - a.lastMessageTime.getTime()
+        );
+
         this.isLoading = false;
       },
       error: (err) => {
@@ -481,6 +519,22 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       };
       this.messages.push(adminMessage);
       console.log('Added admin message:', adminMessage);
+
+      // Update the selected user's last message time
+      if (this.selectedUser) {
+        const userIndex = this.users.findIndex(u => u.id === this.selectedUser?.id);
+        if (userIndex !== -1) {
+          // Update the last message time
+          this.users[userIndex].lastMessageTime = new Date();
+
+          // Re-sort the users list
+          this.users = [...this.users].sort((a, b) => {
+            if (!a.lastMessageTime) return 1;
+            if (!b.lastMessageTime) return -1;
+            return b.lastMessageTime.getTime() - a.lastMessageTime.getTime();
+          });
+        }
+      }
     }
 
     // No longer need to add bot response - as bot should not reply to admin messages
