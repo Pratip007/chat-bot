@@ -7,6 +7,7 @@ import { WebsocketService } from '../../services/websocket.service';
 import { User } from '../../models/user.model';
 import { ChatMessage } from '../../models/chat-message.model';
 import { Subscription } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-user-chat',
@@ -26,6 +27,8 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   previewImage: {url: string, name: string} | null = null;
   selectedFile: File | null = null;
   private subscriptions: Subscription[] = [];
+  readonly #_bus=new Subscription();
+  private deletingMessageIds = new Set<string>();
 
   constructor(
     private userService: UserService,
@@ -53,6 +56,7 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.#_bus.unsubscribe();
     // Clean up subscriptions
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
@@ -126,11 +130,12 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       (deleteData) => {
         console.log('Received message deletion via WebSocket:', deleteData);
 
-        // Find and mark the message as deleted
+        // Only update UI, don't make another API call
         const messageIndex = this.messages.findIndex(msg => msg._id === deleteData._id);
         if (messageIndex !== -1) {
           this.messages[messageIndex].isDeleted = true;
         }
+        // DO NOT call deleteChatByUserIdAndId here
       }
     );
 
@@ -234,12 +239,42 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   deleteMessage(message: ChatMessage): void {
-    if (confirm('Are you sure you want to delete this message?')) {
-      // Mark as deleted but keep in history
-      message.isDeleted = true;
+    // Check if already deleting this message
+    if (this.deletingMessageIds.has(message._id!)) {
+        console.log('Delete already in progress for this message');
+        return;
+    }
 
-      // Delete on server if needed
-      this.deleteMessageOnServer(message);
+    if (confirm('Are you sure you want to delete this message?')) {
+        // Add message ID to tracking set
+        this.deletingMessageIds.add(message._id!);
+
+        // Call delete API once
+        this.userService.deleteChatByUserIdAndId(message._id!)
+            .pipe(
+                // Automatically remove from tracking after 5 seconds (safety cleanup)
+                finalize(() => {
+                    setTimeout(() => {
+                        this.deletingMessageIds.delete(message._id!);
+                    }, 5000);
+                })
+            )
+            .subscribe({
+                next: (response) => {
+                    console.log('Message deleted successfully:', response);
+                    // Mark message as deleted in UI
+                    message.isDeleted = true;
+                    // Remove from tracking
+                    this.deletingMessageIds.delete(message._id!);
+                },
+                error: (error) => {
+                    console.error('Error deleting message:', error);
+                    // Remove from tracking
+                    this.deletingMessageIds.delete(message._id!);
+                    // Show error to user
+                    alert('Failed to delete message. Please try again.');
+                }
+            });
     }
   }
 
@@ -270,16 +305,36 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       return;
     }
 
-    this.userService.deleteMessage(message._id).subscribe({
-      next: (response) => {
-        console.log('Message deleted successfully:', response);
-      },
-      error: (err) => {
-        console.error('Error deleting message:', err);
-        // If delete fails, you might want to restore the message
-        // or show an error message to the user
-      }
-    });
+    // this.userService.deleteMessage(message._id).subscribe({
+    //   next: (response) => {
+    //     debugger;
+    //     console.log('Message deleted successfully:');
+    //   },
+    //   error: (err) => {
+    //     console.error('Error deleting message:', err);
+    //     // If delete fails, you might want to restore the message
+    //     // or show an error message to the user
+    //   }
+    // });
+  }
+
+
+
+  deleteMessageByMessageId(messageId:any):void{
+    console.log("messageId",messageId._id!);
+
+    this.#_bus.add(
+      this.userService.deleteChatByUserIdAndId(messageId._id!).subscribe(
+       {
+        next: (response)=>{
+          console.log("deleted record form angular user chat componet",response);
+        },
+        error: (error)=>{
+          console.log("error in deleting record",error);
+        }
+       }
+      )
+    )
   }
 
   loadUsers(): Promise<void> {

@@ -12,6 +12,14 @@ export class UserService {
 
   constructor(private http: HttpClient) { }
 
+
+  // delete chat
+  deleteChatByUserIdAndId(id:string):Observable<any>{
+    console.log("usr service ",id);
+
+    return this.http.delete(`${this.apiUrl}/chat/message/${id}`);
+  }
+
   // Get all users
   getUsers(): Observable<User[]> {
     return this.getAllUsersWithLastMessages();

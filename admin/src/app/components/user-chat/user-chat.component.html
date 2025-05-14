@@ -169,6 +169,7 @@
                       Edit
                     </button>
                     <button
+                    (click)="deleteMessageByMessageId(message)"
                       (click)="deleteMessage(message)"
                       class="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded transition-colors duration-200 flex items-center gap-1 focus:outline-none">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -190,6 +191,7 @@
                   />
                   <div class="flex justify-end gap-2 mt-2">
                     <button
+
                       (click)="cancelMessageEdit(message)"
                       class="text-xs px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors duration-200 focus:outline-none">
                       Cancel

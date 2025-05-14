@@ -40,4 +40,10 @@ router.post('/message', async (req, res) => {
   }
 });
 
+// Delete a message using 
+router.delete('/message/:id',async(req,res)=>{
+  return res.status(200).json({message:"message deleted successfully"});
+})
+
+
 module.exports = router; 

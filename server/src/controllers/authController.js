@@ -1,3 +1,4 @@
+const Chat = require('../models/Chat');
 const User = require('../models/User');
 const processMessage = require('./chatController').processMessage;
 
@@ -308,9 +309,12 @@ exports.updateMessage = async (req, res) => {
       // Also notify admins
       io.to('admin').emit('messageUpdated', { ...updatedMessage, userId: user.userId });
     }
+
+    console.log("nxjcnjxncjnxjnvjnjvnjdnfjndjfnjdnfjn");
+    
     
     res.json({
-      message: 'Message updated successfully',
+      message: 'Message updated successfully...........................',
       updatedMessage: user.messages[messageIndex]
     });
   } catch (error) {
@@ -334,23 +338,23 @@ exports.deleteMessage = async (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
     }
 
-    // Find the specific message in the array
-    const messageIndex = user.messages.findIndex(msg => msg._id.toString() === messageId);
-    if (messageIndex === -1) {
-      return res.status(404).json({ error: 'Message not found' });
-    }
+    // Remove the message from the messages array using $pull
+    await User.updateOne(
+      { _id: user._id },
+      { 
+        $pull: { 
+          messages: { _id: messageId } 
+        } 
+      }
+    );
 
-    // Mark the message as deleted (soft delete)
-    user.messages[messageIndex].isDeleted = true;
-    user.messages[messageIndex].deletedAt = new Date();
-
-    await user.save();
+    // Fetch the updated user to confirm deletion
+    const updatedUser = await User.findById(user._id);
     
     // Emit socket event for real-time updates
     if (io) {
       const deletedMessage = {
         _id: messageId,
-        deletedAt: user.messages[messageIndex].deletedAt,
         action: 'deleted'
       };
       
@@ -360,10 +364,11 @@ exports.deleteMessage = async (req, res) => {
       // Also notify admins
       io.to('admin').emit('messageDeleted', { ...deletedMessage, userId: user.userId });
     }
-    
+
     res.json({
-      message: 'Message deleted successfully',
-      deletedMessage: user.messages[messageIndex]
+      success: true,
+      message: 'Message deleted successfully...................................',
+      messageId: messageId
     });
   } catch (error) {
     console.error('Error in deleteMessage:', error);
