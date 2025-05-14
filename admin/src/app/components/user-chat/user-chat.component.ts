@@ -134,6 +134,14 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         const messageIndex = this.messages.findIndex(msg => msg._id === deleteData._id);
         if (messageIndex !== -1) {
           this.messages[messageIndex].isDeleted = true;
+
+          // Show notification for real-time updates from other admins or the system
+          const msgSender = deleteData.deletedBy || 'System';
+          const notificationMsg = msgSender === 'System'
+            ? 'A message was deleted'
+            : `A message was deleted by ${msgSender}`;
+
+          this.showNotification(notificationMsg, 'info');
         }
         // DO NOT call deleteChatByUserIdAndId here
       }
@@ -266,16 +274,81 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
                     message.isDeleted = true;
                     // Remove from tracking
                     this.deletingMessageIds.delete(message._id!);
+                    // Show success notification
+                    this.showNotification('Message was successfully deleted', 'success');
                 },
                 error: (error) => {
                     console.error('Error deleting message:', error);
                     // Remove from tracking
                     this.deletingMessageIds.delete(message._id!);
                     // Show error to user
-                    alert('Failed to delete message. Please try again.');
+                    this.showNotification('Failed to delete message. Please try again.', 'error');
                 }
             });
     }
+  }
+
+  // Add notification method
+  private showNotification(message: string, type: 'success' | 'error' | 'info'): void {
+    const notification = document.createElement('div');
+    notification.className = `p-4 rounded-md shadow-lg flex items-center gap-2 ${
+      type === 'success' ? 'bg-green-500' :
+      type === 'error' ? 'bg-red-500' :
+      'bg-blue-500'
+    } text-white text-sm font-medium`;
+
+    // Add icon based on type
+    let icon = '';
+    if (type === 'success') {
+      icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>`;
+    } else if (type === 'error') {
+      icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>`;
+    } else {
+      icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>`;
+    }
+
+    notification.innerHTML = `
+      ${icon}
+      <span>${message}</span>
+      <button class="ml-4 hover:bg-white hover:bg-opacity-20 rounded-full p-1" onclick="this.parentElement.remove()">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    `;
+
+    // Add animation classes
+    notification.style.transition = 'opacity 0.5s, transform 0.5s';
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateY(-20px)';
+
+    // Add to notification container
+    const container = document.getElementById('notification-container');
+    if (container) {
+      container.appendChild(notification);
+    } else {
+      // Fallback to body if container not found
+      document.body.appendChild(notification);
+    }
+
+    // Trigger animation
+    setTimeout(() => {
+      notification.style.opacity = '1';
+      notification.style.transform = 'translateY(0)';
+    }, 10);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateY(-20px)';
+      setTimeout(() => notification.remove(), 500);
+    }, 5000);
   }
 
   // Server sync methods
@@ -318,23 +391,28 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     // });
   }
 
-
-
-  deleteMessageByMessageId(messageId:any):void{
-    console.log("messageId",messageId._id!);
-
-    this.#_bus.add(
-      this.userService.deleteChatByUserIdAndId(messageId._id!).subscribe(
-       {
-        next: (response)=>{
-          console.log("deleted record form angular user chat componet",response);
-        },
-        error: (error)=>{
-          console.log("error in deleting record",error);
-        }
-       }
-      )
-    )
+  deleteMessageByMessageId(messageId: any): void {
+    // Find the message in our current messages array
+    const message = this.messages.find(msg => msg._id === messageId._id);
+    if (message) {
+      // Use the main deleteMessage method to handle the deletion
+      this.deleteMessage(message);
+    } else {
+      console.warn('Message not found in current messages array');
+      // Fallback to direct API call if message not found in current array
+      this.#_bus.add(
+        this.userService.deleteChatByUserIdAndId(messageId._id!).subscribe({
+          next: (response) => {
+            console.log("Deleted record from angular user chat component", response);
+            this.showNotification('Message was successfully deleted', 'success');
+          },
+          error: (error) => {
+            console.log("Error in deleting record", error);
+            this.showNotification('Failed to delete message. Please try again.', 'error');
+          }
+        })
+      );
+    }
   }
 
   loadUsers(): Promise<void> {

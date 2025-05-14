@@ -55,9 +55,7 @@
             </p>
           </div>
         </div>
-        <div *ngIf="user.status === 'active'" class="h-2 w-2 bg-green-500 rounded-full"></div>
-        <div *ngIf="user.status === 'inactive'" class="h-2 w-2 bg-gray-400 rounded-full"></div>
-        <div *ngIf="user.status === 'banned'" class="h-2 w-2 bg-red-500 rounded-full"></div>
+
       </div>
     </div>
   </div>
@@ -159,17 +157,8 @@
                 <div *ngIf="message.senderType === 'admin'" class="flex justify-between items-center mb-2">
                   <span class="text-xs font-medium text-white bg-purple-700 px-2 py-0.5 rounded-full">Admin</span>
                   <div class="flex gap-2">
+
                     <button
-                      *ngIf="!message.isEditing"
-                      (click)="startEditingMessage(message)"
-                      class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-0.5 rounded transition-colors duration-200 flex items-center gap-1 focus:outline-none">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Edit
-                    </button>
-                    <button
-                    (click)="deleteMessageByMessageId(message)"
                       (click)="deleteMessage(message)"
                       class="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded transition-colors duration-200 flex items-center gap-1 focus:outline-none">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">

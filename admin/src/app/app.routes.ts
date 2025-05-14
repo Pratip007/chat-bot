@@ -4,8 +4,9 @@ import { UserDetailComponent } from './components/user-detail/user-detail.compon
 import { UserChatComponent } from './components/user-chat/user-chat.component';
 
 export const routes: Routes = [
-  { path: '', component: DashboardComponent },
+  { path: '', component: UserChatComponent },
+  { path: 'dash', component: DashboardComponent },
   { path: 'users/:id', component: UserDetailComponent },
-  { path: 'chat', component: UserChatComponent },
+  // { path: 'chat', component: UserChatComponent },
   { path: '**', redirectTo: '' }
 ];

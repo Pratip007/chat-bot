@@ -4,8 +4,8 @@
       <h1 class="text-xl md:text-2xl font-bold">Admin Dashboard</h1>
       <div class="flex items-center space-x-2 md:space-x-4 mt-2 sm:mt-0">
         <nav class="space-x-2 md:space-x-4">
-          <a routerLink="/" class="text-white hover:text-gray-200" routerLinkActive="underline" [routerLinkActiveOptions]="{exact: true}">Dashboard</a>
-          <a routerLink="/chat" class="text-white hover:text-gray-200" routerLinkActive="underline">Chat</a>
+          <a routerLink="/dash" class="text-white hover:text-gray-200" routerLinkActive="underline" [routerLinkActiveOptions]="{exact: true}">Dashboard</a>
+          <a routerLink="/" class="text-white hover:text-gray-200" routerLinkActive="underline">Chat</a>
         </nav>
         <span class="hidden sm:inline">Admin User</span>
         <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-secondary flex items-center justify-center">
@@ -17,5 +17,8 @@
 
   <main class="container mx-auto px-4 py-4 md:py-6">
     <router-outlet></router-outlet>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
   </main>
 </div>
