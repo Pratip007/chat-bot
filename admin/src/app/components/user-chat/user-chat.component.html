@@ -36,7 +36,7 @@
               {{user.lastMessage.timestamp | date:'shortTime'}}
             </p>
           </div>
-          <p class="text-xs text-gray-500 truncate">{{user.email}}</p>
+          <!-- <p class="text-xs text-gray-500 truncate">{{user.email}}</p> -->
           <!-- Display last message if available -->
           <div *ngIf="user.lastMessage" class="flex justify-between items-start mt-1">
             <p class="text-xs truncate"
