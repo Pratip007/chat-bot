@@ -310,7 +310,7 @@ function ChatInterface() {
       <div className="chat-header">
         <div className="header-content">
           <div className="logo-container">
-            <span className="header-icon">💬</span>
+          <span className="header-icon">💬</span>
             <h1 className="header-title">Customer Support</h1>
           </div>
           <div className="user-container">
@@ -512,72 +512,72 @@ function ChatInterface() {
         }
         
         .chat-header {
-          background: linear-gradient(120deg, #1e40af 0%, #3b82f6 40%, #6366f1 100%);
-          color: white;
+          background: linear-gradient(120deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%);
+          color: #0c4a6e;
           padding: 20px;
           position: relative;
           z-index: 10;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 4px 15px rgba(56, 189, 248, 0.15);
+          border-bottom: 1px solid rgba(56, 189, 248, 0.2);
         }
         
         .header-content {
           display: flex;
-          align-items: center;
           justify-content: space-between;
+          align-items: center;
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 10px;
         }
         
         .logo-container {
           display: flex;
           align-items: center;
-          gap: 16px;
+          background: rgba(255, 255, 255, 0.5);
+          padding: 8px 15px;
+          border-radius: 20px;
+          box-shadow: 0 2px 10px rgba(56, 189, 248, 0.12);
+          border: 1px solid rgba(186, 230, 253, 0.5);
         }
         
         .header-icon {
-          font-size: 2.2em;
-          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+          font-size: 24px;
+          margin-right: 10px;
+          color: #0284c7;
         }
         
         .header-title {
-          font-size: 1.8em;
-          font-weight: 700;
-          font-family: 'Georgia', serif;
-          letter-spacing: 0.5px;
-          margin: 0;
-          text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          background: linear-gradient(90deg, #ffffff, #e0e0ff);
+          font-size: 20px;
+          font-weight: 600;
+          background: linear-gradient(to right, #0c4a6e, #0369a1);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
+          letter-spacing: 0.5px;
         }
         
         .user-container {
+          background: rgba(255, 255, 255, 0.5);
+          padding: 6px 12px;
+          border-radius: 15px;
           display: flex;
           align-items: center;
+          box-shadow: 0 2px 8px rgba(56, 189, 248, 0.1);
+          border: 1px solid rgba(186, 230, 253, 0.5);
         }
         
         .user-info {
           display: flex;
           align-items: center;
-          gap: 12px;
-          background: rgba(255,255,255,0.15);
-          padding: 10px 20px;
-          border-radius: 12px;
-          backdrop-filter: blur(10px);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          transition: all 0.3s ease;
-          border: 1px solid rgba(255,255,255,0.2);
         }
         
         .user-icon {
-          font-size: 1.3em !important;
-          color: #ffffff;
+          color: #0284c7 !important;
+          margin-right: 5px;
         }
         
         .username {
-          font-size: 1.3em;
-          font-weight: 600;
-          font-family: 'Georgia', serif;
-          color: #ffffff;
-          letter-spacing: 0.5px;
+          font-weight: 500;
+          color: #0369a1;
         }
         
         .chat-messages-container {
@@ -647,11 +647,11 @@ function ChatInterface() {
         }
         
         .user-avatar {
-          background: linear-gradient(135deg, #a855f7, #7c2ae8);
+          background: linear-gradient(135deg, #7dd3fc, #38bdf8);
           color: white;
           position: relative;
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          box-shadow: 0 2px 8px rgba(168, 85, 247, 0.5);
+          border: 2px solid rgba(255, 255, 255, 0.5);
+          box-shadow: 0 2px 8px rgba(56, 189, 248, 0.4);
         }
         
         .user-avatar-inner {
@@ -663,7 +663,7 @@ function ChatInterface() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #a855f7, #7c2ae8);
+          background: linear-gradient(135deg, #7dd3fc, #38bdf8);
           border-radius: 50%;
         }
         
@@ -694,10 +694,10 @@ function ChatInterface() {
         }
         
         .user-message {
-          background: linear-gradient(135deg, #a855f7, #7c2ae8);
-          color: white;
+          background: linear-gradient(135deg, #bae6fd, #7dd3fc);
+          color: #0c4a6e;
           border-bottom-right-radius: 4px;
-          box-shadow: 0 4px 12px rgba(168,85,247,0.3);
+          box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
         }
         
         .message-bubble {
@@ -792,9 +792,9 @@ function ChatInterface() {
         }
         
         .send-button {
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
+          background: linear-gradient(135deg, #38bdf8, #0284c7);
           color: white;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+          box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
         }
         
         .send-button:disabled, 
@@ -806,7 +806,7 @@ function ChatInterface() {
         
         .send-button:hover:not(:disabled) {
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(59, 130, 246, 0.3);
+          box-shadow: 0 6px 16px rgba(56, 189, 248, 0.3);
         }
         
         .selected-file-container {
@@ -814,7 +814,7 @@ function ChatInterface() {
           border-radius: 16px;
           padding: 10px 16px;
           margin-bottom: 12px;
-          border-left: 3px solid #3b82f6;
+          border-left: 3px solid #38bdf8;
           animation: slideIn 0.3s ease;
         }
         
@@ -946,8 +946,8 @@ function ChatInterface() {
         .loading-spinner {
           width: 40px;
           height: 40px;
-          border: 3px solid rgba(168,85,247,0.1);
-          border-top: 3px solid #a855f7;
+          border: 3px solid rgba(56, 189, 248, 0.1);
+          border-top: 3px solid #38bdf8;
           border-radius: 50%;
           margin-bottom: 20px;
           animation: spin 1s linear infinite;
@@ -987,8 +987,8 @@ function ChatInterface() {
           align-items: center;
           justify-content: center;
           margin-bottom: 20px;
-          filter: drop-shadow(0 4px 6px rgba(59, 130, 246, 0.3));
-          background: linear-gradient(135deg, #2563eb, #3b82f6);
+          filter: drop-shadow(0 4px 6px rgba(56, 189, 248, 0.3));
+          background: linear-gradient(135deg, #38bdf8, #0284c7);
           width: 80px;
           height: 80px;
           border-radius: 50%;
@@ -1000,7 +1000,7 @@ function ChatInterface() {
         .welcome-message h2 {
           font-size: 1.8em;
           margin-bottom: 12px;
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
+          background: linear-gradient(135deg, #38bdf8, #0284c7);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           font-weight: 700;
