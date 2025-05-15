@@ -7,6 +7,7 @@ export interface ChatMessage {
   editContent?: string;
   isDeleted?: boolean;
   error?: string;
+  isRead?: boolean;
   file?: {
     filename: string;
     originalname: string;

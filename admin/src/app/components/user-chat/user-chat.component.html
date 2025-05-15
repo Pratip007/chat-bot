@@ -22,10 +22,18 @@
         class="flex items-center p-3 border-b cursor-pointer hover:bg-gray-100"
         [class.bg-gray-200]="selectedUser?.id === user.id"
       >
-        <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
-          <img *ngIf="user.avatar" [src]="user.avatar" alt="User avatar" class="w-full h-full object-cover">
-          <div *ngIf="!user.avatar" class="w-full h-full flex items-center justify-center text-gray-500">
-            {{user.name.charAt(0) || 'U'}}
+        <!-- User Avatar with Unread Indicator -->
+        <div class="relative w-10 h-10 mr-3">
+          <div class="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+            <img *ngIf="user.avatar" [src]="user.avatar" alt="User avatar" class="w-full h-full object-cover">
+            <div *ngIf="!user.avatar" class="w-full h-full flex items-center justify-center text-gray-500">
+              {{user.name.charAt(0) || 'U'}}
+            </div>
+          </div>
+          <!-- Unread messages indicator -->
+          <div *ngIf="user.unreadCount && user.unreadCount > 0"
+               class="absolute -top-1 -right-1 w-5 h-5 bg-green-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+            {{user.unreadCount > 9 ? '9+' : user.unreadCount}}
           </div>
         </div>
         <div class="flex-1 min-w-0">
@@ -138,9 +146,10 @@
                   'bg-gray-100 text-gray-800 rounded-bl-none': message.senderType === 'bot'
                 }"
               >
-                <!-- Add user label for user messages -->
-                <div *ngIf="message.senderType === 'user'" class="text-xs font-medium text-gray-500 mb-1">
-                  User
+                <!-- User label with unread indicator -->
+                <div *ngIf="message.senderType === 'user'" class="flex items-center mb-1">
+                  <span class="text-xs font-medium text-gray-500 mr-2">User</span>
+                  <div *ngIf="!message.isRead" class="w-2 h-2 rounded-full bg-green-500"></div>
                 </div>
 
                 <!-- Bot header with icon inside the message container -->

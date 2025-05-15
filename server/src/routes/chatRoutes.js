@@ -45,5 +45,34 @@ router.delete('/message/:id',async(req,res)=>{
   return res.status(200).json({message:"message deleted successfully"});
 })
 
+// Mark all messages from a user as read (admin only)
+router.put('/read/:userId', isAdmin, async (req, res) => {
+  try {
+    const result = await chatController.markMessagesAsRead(req.params.userId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Error marking messages as read' });
+  }
+});
+
+// Mark a specific message as read (admin only)
+router.put('/read/message/:messageId', isAdmin, async (req, res) => {
+  try {
+    const result = await chatController.markMessageAsRead(req.params.messageId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Error marking message as read' });
+  }
+});
+
+// Get unread message counts per user (admin only)
+router.get('/unread-counts', isAdmin, async (req, res) => {
+  try {
+    const unreadCounts = await chatController.getUnreadMessageCounts();
+    res.json(unreadCounts);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching unread message counts' });
+  }
+});
 
 module.exports = router; 

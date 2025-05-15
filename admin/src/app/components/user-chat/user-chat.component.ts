@@ -77,7 +77,8 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           content: messageData.content,
           timestamp: new Date(messageData.timestamp),
           senderType: messageData.senderType,
-          file: messageData.file
+          file: messageData.file,
+          isRead: messageData.isRead || false
         };
 
         // Check if this message is for our currently selected user
@@ -93,6 +94,11 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
             // Scroll to bottom after receiving a new message
             setTimeout(() => this.scrollToBottom(), 100);
 
+            // If this is a user message and admin is viewing the conversation, mark it as read
+            if (newMessage.senderType === 'user' && this.selectedUser) {
+              this.markMessageAsRead(newMessage);
+            }
+
             // Update the selected user's last message
             this.selectedUser.lastMessage = newMessage;
           }
@@ -103,6 +109,12 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           const userToUpdate = this.users.find(u => u.id === messageData.userId);
           if (userToUpdate) {
             userToUpdate.lastMessage = newMessage;
+
+            // If a new user message and it's not the current user, increment unread count
+            if (newMessage.senderType === 'user' &&
+                (!this.selectedUser || userToUpdate.id !== this.selectedUser.id)) {
+              userToUpdate.unreadCount = (userToUpdate.unreadCount || 0) + 1;
+            }
           }
         }
 
@@ -147,8 +159,36 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       }
     );
 
+    // Handle message read status updates
+    const readSub = this.websocketService.getMessageReadUpdates().subscribe(
+      (readData) => {
+        console.log('Received message read update via WebSocket:', readData);
+
+        if (readData.messageId) {
+          // Single message update
+          const messageToUpdate = this.messages.find(msg => msg._id === readData.messageId);
+          if (messageToUpdate) {
+            messageToUpdate.isRead = true;
+          }
+        } else if (readData.userId) {
+          // All messages for a user update
+          this.messages.forEach(msg => {
+            if (msg.senderType === 'user') {
+              msg.isRead = true;
+            }
+          });
+
+          // Update unread count for this user in the list
+          const userToUpdate = this.users.find(u => u.id === readData.userId);
+          if (userToUpdate) {
+            userToUpdate.unreadCount = 0;
+          }
+        }
+      }
+    );
+
     // Store subscriptions for cleanup
-    this.subscriptions.push(messageSub, updateSub, deleteSub);
+    this.subscriptions.push(messageSub, updateSub, deleteSub, readSub);
   }
 
   scrollToBottom(): void {
@@ -435,28 +475,35 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   selectUser(userId: string): void {
-    // Update route for sharing/bookmarking
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { userId },
-      queryParamsHandling: 'merge'
-    });
+    this.isLoading = true;
+    // Clear current selection
+    this.selectedUser = undefined;
+    this.messages = [];
+    this.newMessage = '';
+    this.selectedFile = null;
 
-    // Find selected user
+    // Get user data and load chat history
     this.userService.getUserById(userId).subscribe({
       next: (user) => {
         this.selectedUser = user;
+        // Store the user ID in the route for bookmarking/sharing
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { userId },
+          queryParamsHandling: 'merge'
+        });
 
-        // Join the user-specific room for direct updates
-        this.websocketService.joinRoom(userId);
+        // Load chat history
+        this.loadChatHistory(userId);
+
+        // Mark messages as read when admin selects a user
+        this.markMessagesAsRead(userId);
       },
       error: (err) => {
-        console.error('Error loading user details:', err);
+        console.error('Error loading user:', err);
+        this.isLoading = false;
       }
     });
-
-    // Load chat history
-    this.loadChatHistory(userId);
   }
 
   loadChatHistory(userId: string): void {
@@ -543,29 +590,20 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   sendMessage(): void {
-    if (!this.selectedUser || (!this.newMessage.trim() && !this.selectedFile)) return;
+    if ((!this.newMessage || this.newMessage.trim() === '') && !this.selectedFile) {
+      return;
+    }
+
+    if (!this.selectedUser) {
+      console.error('No user selected to send message to');
+      return;
+    }
 
     this.isLoading = true;
-    console.log('Sending message to user:', this.selectedUser.id, 'Message:', this.newMessage, 'File:', this.selectedFile?.name);
 
-    // For simple text messages without files, use WebSocket for instant delivery
-    if (!this.selectedFile && this.newMessage.trim()) {
-      // WebSocket doesn't support file uploads, so we'll only use it for text
-      // We'll try the REST API if WebSocket fails
-      try {
-        // Send the message via WebSocket
-        this.websocketService.sendMessage(this.selectedUser.id, this.newMessage);
-
-        // The message will be added to UI when received back from socket
-        this.newMessage = '';
-        this.isLoading = false;
-      } catch (err) {
-        console.error('Error sending message via WebSocket, falling back to HTTP:', err);
-        // Fall back to HTTP API
-        this.sendMessageViaHttp();
-      }
+    if (this.selectedFile) {
+      this.sendMessageWithFile();
     } else {
-      // For files, we need to use the HTTP API
       this.sendMessageViaHttp();
     }
   }
@@ -780,5 +818,81 @@ export class UserChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     } else {
       return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     }
+  }
+
+  // Mark all messages from a user as read
+  markMessagesAsRead(userId: string): void {
+    // Call the REST API
+    this.userService.markMessagesAsRead(userId).subscribe({
+      next: (result) => {
+        console.log('Messages marked as read:', result);
+
+        // Update local messages to reflect read status
+        this.messages.forEach(msg => {
+          if (msg.senderType === 'user') {
+            msg.isRead = true;
+          }
+        });
+
+        // Update user in the list to remove unread count
+        const userToUpdate = this.users.find(u => u.id === userId);
+        if (userToUpdate) {
+          userToUpdate.unreadCount = 0;
+        }
+
+        // Also send WebSocket update to notify other admin clients
+        this.websocketService.markMessagesAsRead(userId);
+      },
+      error: (err) => {
+        console.error('Error marking messages as read:', err);
+      }
+    });
+  }
+
+  // Mark a specific message as read
+  markMessageAsRead(message: ChatMessage): void {
+    if (!message._id || message.isRead) {
+      return;
+    }
+
+    const messageId = message._id;
+
+    // Call the REST API
+    this.userService.markMessageAsRead(messageId).subscribe({
+      next: (result) => {
+        console.log('Message marked as read:', result);
+        message.isRead = true;
+
+        // Also send WebSocket update to notify other admin clients
+        this.websocketService.markMessageAsRead(messageId);
+      },
+      error: (err) => {
+        console.error('Error marking message as read:', err);
+      }
+    });
+  }
+
+  // Send message with file
+  private sendMessageWithFile(): void {
+    if (!this.selectedUser || !this.selectedFile) return;
+
+    // Create FormData for the request
+    const formData = new FormData();
+    formData.append('userId', this.selectedUser.id);
+    formData.append('message', this.newMessage || '');
+    formData.append('adminId', '3'); // Should come from auth
+    formData.append('file', this.selectedFile, this.selectedFile.name);
+
+    // Send the request
+    this.userService.sendMessageWithFile(this.selectedUser.id, formData).subscribe({
+      next: (response) => {
+        console.log('Message with file sent successfully:', response);
+        this.handleMessageResponse(response);
+      },
+      error: (err) => {
+        console.error('Error sending message with file:', err);
+        this.handleMessageError(err);
+      }
+    });
   }
 }

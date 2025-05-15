@@ -60,6 +60,11 @@ app.get('/api/chat/history/:userId', authController.getChatHistoryByParam);
 app.put('/api/chat/message/:messageId', authController.updateMessage);
 app.delete('/api/chat/message/:messageId', authController.deleteMessage);
 
+// Message read status endpoints
+app.put('/api/chat/read/:userId', authController.markMessagesAsRead);
+app.put('/api/chat/read/message/:messageId', authController.markMessageAsRead);
+app.get('/api/chat/unread-counts', authController.getUnreadMessageCounts);
+
 // Basic route
 app.get('/', (req, res) => {
     res.send('Chatbot API is running');
@@ -206,6 +211,70 @@ io.on('connection', (socket) => {
       console.error('Error processing socket message:', error);
       socket.emit('error', {
         message: 'Error processing your message'
+      });
+    }
+  });
+
+  // Handle marking all messages for a user as read
+  socket.on('markMessagesRead', async (data) => {
+    try {
+      console.log('Marking messages as read via socket:', data);
+      
+      if (!data.userId) {
+        socket.emit('error', { message: 'userId is required' });
+        return;
+      }
+      
+      // Call the controller method to mark messages as read
+      const chatController = require('./src/controllers/chatController');
+      const result = await chatController.markMessagesAsRead(data.userId);
+      
+      if (result.success) {
+        // Broadcast the update to all admins
+        io.to('admin').emit('messageRead', {
+          userId: data.userId,
+          adminId: data.adminId || 'admin-socket',
+          timestamp: new Date()
+        });
+        
+        console.log(`Emitted message read update for user ${data.userId}`);
+      }
+    } catch (error) {
+      console.error('Error marking messages as read via socket:', error);
+      socket.emit('error', {
+        message: 'Error marking messages as read'
+      });
+    }
+  });
+  
+  // Handle marking a specific message as read
+  socket.on('markMessageRead', async (data) => {
+    try {
+      console.log('Marking message as read via socket:', data);
+      
+      if (!data.messageId) {
+        socket.emit('error', { message: 'messageId is required' });
+        return;
+      }
+      
+      // Call the controller method to mark the message as read
+      const chatController = require('./src/controllers/chatController');
+      const result = await chatController.markMessageAsRead(data.messageId);
+      
+      if (result) {
+        // Broadcast the update to all admins
+        io.to('admin').emit('messageRead', {
+          messageId: data.messageId,
+          adminId: data.adminId || 'admin-socket',
+          timestamp: new Date()
+        });
+        
+        console.log(`Emitted message read update for message ${data.messageId}`);
+      }
+    } catch (error) {
+      console.error('Error marking message as read via socket:', error);
+      socket.emit('error', {
+        message: 'Error marking message as read'
       });
     }
   });

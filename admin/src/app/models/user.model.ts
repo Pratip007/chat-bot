@@ -12,4 +12,5 @@ export interface User {
   role: 'user' | 'admin';
   status: 'active' | 'inactive' | 'banned';
   messages?: ChatMessage[];
+  unreadCount?: number;
 }

@@ -25,6 +25,21 @@ export class UserService {
     return this.getAllUsersWithLastMessages();
   }
 
+  // Get unread message counts for all users
+  getUnreadMessageCounts(): Observable<{userId: string, unreadCount: number}[]> {
+    return this.http.get<{userId: string, unreadCount: number}[]>(`${this.apiUrl}/chat/unread-counts`);
+  }
+
+  // Mark all messages from a user as read
+  markMessagesAsRead(userId: string): Observable<any> {
+    return this.http.put(`${this.apiUrl}/chat/read/${userId}`, {});
+  }
+
+  // Mark a specific message as read
+  markMessageAsRead(messageId: string): Observable<any> {
+    return this.http.put(`${this.apiUrl}/chat/read/message/${messageId}`, {});
+  }
+
   // Get all users with their last message for sorting
   getAllUsersWithLastMessages(): Observable<User[]> {
     return this.http.get<any[]>(`${this.apiUrl}/users`).pipe(
@@ -41,6 +56,9 @@ export class UserService {
           status: 'active' as const,
           avatar: `https://ui-avatars.com/api/?name=${user.username}&background=3B82F6&color=fff`
         }));
+
+        // Get unread counts for all users
+        const unreadCountsObservable = this.getUnreadMessageCounts();
 
         // Create an array of observables that fetch the last message for each user
         const userObservables = mappedUsers.map(user => {
@@ -59,11 +77,22 @@ export class UserService {
           );
         });
 
-        // Combine all user observables
-        return forkJoin(userObservables).pipe(
-          map(updatedUsers => {
-            // Sort users by updatedAt or lastMessage timestamp (most recent first)
-            return updatedUsers.sort((a, b) => {
+        // Combine all user observables with unread counts
+        return forkJoin([forkJoin(userObservables), unreadCountsObservable]).pipe(
+          map(([updatedUsers, unreadCounts]) => {
+            // Merge unread counts with user data
+            return updatedUsers.map(user => {
+              const userUnreadCount = unreadCounts.find(count => count.userId === user.id);
+              return {
+                ...user,
+                unreadCount: userUnreadCount ? userUnreadCount.unreadCount : 0
+              };
+            }).sort((a, b) => {
+              // Sort by unread count first (highest first)
+              if ((b.unreadCount || 0) !== (a.unreadCount || 0)) {
+                return (b.unreadCount || 0) - (a.unreadCount || 0);
+              }
+              // Then sort by message timestamp
               const dateA = a.lastMessage?.timestamp || a.updatedAt || a.lastActive || a.createdAt;
               const dateB = b.lastMessage?.timestamp || b.updatedAt || b.lastActive || b.createdAt;
               return new Date(dateB).getTime() - new Date(dateA).getTime();
@@ -128,7 +157,8 @@ export class UserService {
           _id: lastMsg._id,
           content: lastMsg.content || lastMsg.message || '',
           timestamp: new Date(lastMsg.timestamp || Date.now()),
-          senderType: lastMsg.senderType || (lastMsg.senderId === '3' ? 'admin' : (lastMsg.isBot ? 'bot' : 'user'))
+          senderType: lastMsg.senderType || (lastMsg.senderId === '3' ? 'admin' : (lastMsg.isBot ? 'bot' : 'user')),
+          isRead: lastMsg.isRead
         };
       })
     );
@@ -186,7 +216,8 @@ export class UserService {
             content: messageContent,
             timestamp: new Date(msg.timestamp || Date.now()),
             senderType: msg.senderType || (msg.senderId === '3' ? 'admin' : (msg.isBot ? 'bot' : 'user')),
-            file: msg.file
+            file: msg.file,
+            isRead: msg.isRead
           };
         });
       })

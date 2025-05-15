@@ -28,6 +28,10 @@ const messageSchema = new mongoose.Schema({
     mimetype: String,
     size: Number,
     data: String // Base64 encoded file data
+  },
+  isRead: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -57,7 +61,8 @@ exports.processMessage = async (message) => {
       message: message.text,
       response: response,
       userId: message.userId,
-      senderType: message.senderType || 'user'
+      senderType: message.senderType || 'user',
+      isRead: false // New messages are unread by default
     });
     await chat.save();
 
@@ -106,6 +111,58 @@ exports.getAllChats = async (page = 1, limit = 20) => {
     };
   } catch (error) {
     console.error('Error fetching all chats:', error);
+    throw error;
+  }
+};
+
+// Mark a user's messages as read when admin views them
+exports.markMessagesAsRead = async (userId) => {
+  try {
+    const result = await Chat.updateMany(
+      { userId, senderType: 'user', isRead: false },
+      { $set: { isRead: true } }
+    );
+    
+    return { 
+      success: true, 
+      count: result.modifiedCount 
+    };
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    throw error;
+  }
+};
+
+// Mark a specific message as read
+exports.markMessageAsRead = async (messageId) => {
+  try {
+    const result = await Chat.findByIdAndUpdate(
+      messageId,
+      { $set: { isRead: true } },
+      { new: true }
+    );
+    
+    return result;
+  } catch (error) {
+    console.error('Error marking message as read:', error);
+    throw error;
+  }
+};
+
+// Get count of unread messages per user
+exports.getUnreadMessageCounts = async () => {
+  try {
+    const unreadCounts = await Chat.aggregate([
+      { $match: { senderType: 'user', isRead: false } },
+      { $group: { _id: '$userId', count: { $sum: 1 } } }
+    ]);
+    
+    return unreadCounts.map(item => ({
+      userId: item._id,
+      unreadCount: item.count
+    }));
+  } catch (error) {
+    console.error('Error getting unread message counts:', error);
     throw error;
   }
 }; 

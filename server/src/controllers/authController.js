@@ -10,6 +10,9 @@ exports.setSocketIO = (socketIO) => {
   io = socketIO;
 };
 
+// Import chat controller functions
+const chatController = require('./chatController');
+
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find({}, { userId: 1, username: 1, createdAt: 1, updatedAt: 1 });
@@ -373,5 +376,68 @@ exports.deleteMessage = async (req, res) => {
   } catch (error) {
     console.error('Error in deleteMessage:', error);
     res.status(500).json({ error: 'Error deleting message' });
+  }
+};
+
+// Mark all messages from a user as read
+exports.markMessagesAsRead = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    
+    const result = await chatController.markMessagesAsRead(userId);
+    
+    // Emit to all admin clients for real-time updates
+    if (io) {
+      io.to('admin').emit('messageRead', {
+        userId,
+        timestamp: new Date()
+      });
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    res.status(500).json({ error: 'Error marking messages as read' });
+  }
+};
+
+// Mark a specific message as read
+exports.markMessageAsRead = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    
+    if (!messageId) {
+      return res.status(400).json({ error: 'messageId is required' });
+    }
+    
+    const result = await chatController.markMessageAsRead(messageId);
+    
+    // Emit to all admin clients for real-time updates
+    if (io && result) {
+      io.to('admin').emit('messageRead', {
+        messageId,
+        timestamp: new Date()
+      });
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error marking message as read:', error);
+    res.status(500).json({ error: 'Error marking message as read' });
+  }
+};
+
+// Get unread message counts for all users
+exports.getUnreadMessageCounts = async (req, res) => {
+  try {
+    const unreadCounts = await chatController.getUnreadMessageCounts();
+    res.json(unreadCounts);
+  } catch (error) {
+    console.error('Error getting unread message counts:', error);
+    res.status(500).json({ error: 'Error getting unread message counts' });
   }
 }; 

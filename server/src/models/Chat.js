@@ -25,6 +25,10 @@ const chatSchema = new mongoose.Schema({
     type: String,
     enum: ['user', 'bot', 'admin'],
     default: 'user'
+  },
+  isRead: {
+    type: Boolean,
+    default: false
   }
 });
 

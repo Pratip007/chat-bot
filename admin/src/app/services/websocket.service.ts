@@ -13,6 +13,7 @@ export class WebsocketService {
   private messageSubject = new Subject<any>();
   private messageUpdatedSubject = new Subject<any>();
   private messageDeletedSubject = new Subject<any>();
+  private messageReadSubject = new Subject<any>();
 
   constructor() {
     this.socket = io('http://localhost:5000', {
@@ -35,6 +36,12 @@ export class WebsocketService {
     this.socket.on('messageDeleted', (data: any) => {
       console.log('WebSocket received message deletion:', data);
       this.messageDeletedSubject.next(data);
+    });
+
+    // Listen for message read status updates
+    this.socket.on('messageRead', (data: any) => {
+      console.log('WebSocket received message read status update:', data);
+      this.messageReadSubject.next(data);
     });
 
     this.socket.on('connect', () => {
@@ -73,6 +80,11 @@ export class WebsocketService {
     return this.messageDeletedSubject.asObservable();
   }
 
+  // Get message read status notifications
+  getMessageReadUpdates(): Observable<any> {
+    return this.messageReadSubject.asObservable();
+  }
+
   // Send message through socket
   sendMessage(userId: string, message: string): void {
     this.socket.emit('sendMessage', {
@@ -81,6 +93,24 @@ export class WebsocketService {
       timestamp: new Date(),
       isAdmin: true,
       adminId: '3' // This should come from auth service in a real app
+    });
+  }
+
+  // Mark messages as read through socket
+  markMessagesAsRead(userId: string): void {
+    this.socket.emit('markMessagesRead', {
+      userId: userId,
+      adminId: '3', // This should come from auth service
+      timestamp: new Date()
+    });
+  }
+
+  // Mark a specific message as read
+  markMessageAsRead(messageId: string): void {
+    this.socket.emit('markMessageRead', {
+      messageId: messageId,
+      adminId: '3', // This should come from auth service
+      timestamp: new Date()
     });
   }
 
