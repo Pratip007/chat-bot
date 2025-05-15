@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 
 // Simple response mapping for common queries
 const responseMap = {
-  'hello': 'Hello! How can I help you today?',
+  'hello': 'Hello! Welcome to Cortex AI, How may I assist you today?',
   'hi': 'Hi there! How may I assist you?',
-  'help': 'I can help you with:\n1. Product information\n2. Order status\n3. Returns and refunds\n4. Technical support\nWhat would you like to know?',
+  'help': 'I can help you with:\n1. Account Status\n2. KYC \n3. Deposit&Withdrawals\n4. Technical support\nWhat would you like to know?',
   'bye': 'Thank you for chatting with us. Have a great day!',
   'thanks': 'You\'re welcome! Is there anything else I can help you with?'
 };
