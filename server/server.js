@@ -25,19 +25,18 @@ const upload = multer({
 
 // CORS configuration
 const corsOptions = {
-  origin: ['http://localhost:4200', 'http://localhost:3000'],
+  origin: ['http://localhost:4200', 'http://localhost:3000', 'http://localhost:8000','http://127.0.0.1:8000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 };
 
-app.use(cors(corsOptions));
+app.use('*',cors(corsOptions));
 
 const io = socketIo(server, {
   cors: corsOptions,
   transports: ['websocket', 'polling']
 });
-
 // Pass the io instance to the auth controller
 authController.setSocketIO(io);
 
