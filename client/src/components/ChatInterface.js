@@ -6,6 +6,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import PersonIcon from '@mui/icons-material/Person';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 
+
+
+
+
+
 // Create the socket connection
 const socket = io('http://localhost:5000');
 
@@ -20,6 +25,14 @@ function ChatInterface() {
   const [socketConnected, setSocketConnected] = useState(false);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+
+  const query = new URLSearchParams(window.location.search);
+  const userIds = query.get('userId');
+  const usernames = query.get('username');
+  console.log("Read data from ",userIds,usernames);
+
+ 
 
   // Fetch chat history from the server
   const fetchChatHistory = async (uid) => {
@@ -75,16 +88,16 @@ function ChatInterface() {
   };
 
   useEffect(() => {
-    const userData = JSON.parse(sessionStorage.getItem('userData') || '{}');
-    if (userData.userId) {
-      setUserId(userData.userId);
-      console.log('UserId from sessionStorage:', userData.userId);
+    // const userData = JSON.parse(sessionStorage.getItem('userData') || '{}');
+    if (userIds) {
+      setUserId(userIds);
+      console.log('UserId from sessionStorage:', userIds);
       // Fetch chat history when userId is available
-      fetchChatHistory(userData.userId);
+      fetchChatHistory(userIds);
     }
-    if (userData.username) {
-      setUsername(userData.username);
-      console.log('Username from sessionStorage:', userData.username);
+    if (usernames) {
+      setUsername(usernames);
+      console.log('Username from sessionStorage:', usernames);
     }
 
     // Socket connection events
@@ -93,9 +106,9 @@ function ChatInterface() {
       setSocketConnected(true);
       
       // Join user-specific room for direct messages
-      if (userData.userId) {
-        socket.emit('join', { userId: userData.userId });
-        console.log('Joined room for user:', userData.userId);
+      if (userIds) {
+        socket.emit('join', { userId: userIds });
+        console.log('Joined room for user:', userIds);
       }
     });
     
@@ -207,9 +220,9 @@ function ChatInterface() {
     if (!input.trim() && !selectedFile) return;
 
     // Get latest userId from sessionStorage in case it was updated
-    const userData = JSON.parse(sessionStorage.getItem('userData') || '{}');
-    const currentUserId = userData.userId || userId;
-    const currentUsername = userData.username || username;
+    // const userData = JSON.parse(sessionStorage.getItem('userData') || '{}');
+    const currentUserId = userIds || userId;
+    const currentUsername = usernames || username;
     
     console.log('Current username:', currentUsername);
     
@@ -305,12 +318,15 @@ function ChatInterface() {
     }
   };
 
+
+  
+
   return (
     <div className="chat-container">
       <div className="chat-header">
         <div className="header-content">
           <div className="logo-container">
-          <span className="header-icon">💬</span>
+            <span className="header-icon">💬</span>
             <h1 className="header-title">Customer Support</h1>
           </div>
           <div className="user-container">
@@ -395,19 +411,7 @@ function ChatInterface() {
                                   </a>
                                 </div>
                               </div>
-                            ) : (
-                              <a 
-                                href={message.file.data} 
-                                download={message.file.name}
-                                className="file-link"
-                              >
-                                <div className="file-icon">📎</div>
-                                <div className="file-details">
-                                  <div className="file-name">{message.file.name}</div>
-                                  <div className="file-action">Download</div>
-                                </div>
-                              </a>
-                            )}
+                            ) : null}
                           </div>
                         )}
                       </div>
