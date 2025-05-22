@@ -3,12 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, throwError, forkJoin, of, switchMap } from 'rxjs';
 import { User } from '../models/user.model';
 import { ChatMessage } from '../models/chat-message.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
-  private apiUrl = 'http://localhost:5000/api';
+  private apiUrl = environment.API_URL;
 
   constructor(private http: HttpClient) { }
 

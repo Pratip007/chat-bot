@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { ChatMessage } from '../models/chat-message.model';
+import { environment } from '../../environments/environment';
 
 // Using a more generic approach to avoid type issues
 declare const io: any;
@@ -16,7 +17,7 @@ export class WebsocketService {
   private messageReadSubject = new Subject<any>();
 
   constructor() {
-    this.socket = io('http://localhost:5000', {
+    this.socket = io(environment.SOCKET_URL, {
       transports: ['websocket', 'polling']
     });
 
